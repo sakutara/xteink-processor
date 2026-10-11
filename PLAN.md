@@ -100,7 +100,7 @@ Reader trả về `{ meta, cover: Blob|null, docs: [{ href, html }], toc: [{ tit
 - **HTML**: một doc, chương lấy từ heading hoặc regex.
 
 ## UI
-Một trang: kéo-thả/chọn file → tiến trình → nút "Tải xuống `<title> - x3.epub`". `<title>` lấy từ metadata của sách; không có metadata thì dùng tên file gốc (bỏ đuôi); ký tự không hợp lệ trong tên file được thay bằng khoảng trắng. Không có tuỳ chọn nào khác. Báo lỗi bằng tiếng Việt, có chỉ báo "Sẵn sàng offline".
+Một trang: kéo-thả/chọn file → tiến trình → nút "Tải xuống `<title> - <author> - xte.epub` (bỏ phần `<author>` nếu sách không có tác giả)". `<title>` lấy từ metadata của sách; không có metadata thì dùng tên file gốc (bỏ đuôi); ký tự không hợp lệ trong tên file được thay bằng khoảng trắng. Không có tuỳ chọn nào khác. Báo lỗi bằng tiếng Việt, có chỉ báo "Sẵn sàng offline".
 
 ## Verification
 1. Chạy `python3 -m http.server` trong project, mở bằng built-in browser.

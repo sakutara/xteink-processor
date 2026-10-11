@@ -35,14 +35,53 @@ for (let c = 0xFF01; c <= 0xFF5E; c++) {
 const SPECIAL = new RegExp(`[${[...CHAR_MAP.keys()].join('')}]`, 'g');
 const INVISIBLE = /[​-‏‪-‮⁠-⁤­﻿︀-️￼�]/g;
 
-/** Chuẩn hoá một đoạn text: NFC, bỏ ký tự XML không hợp lệ, đổi ký tự đặc biệt, gộp khoảng trắng. */
+// Viết tắt có dấu chấm dính liền chữ hoa theo sau (Ph.D, Tp.HCM...) — không tách.
+const ABBREV = /^(?:ph|th|tp|tt|dr|mr|mrs|ms|st|prof|gs|ts|ths|pgs|ks|bs|cn|vs|jr|sr|nxb)$/i;
+// Token là URL / email / tham số truy vấn thì giữ nguyên.
+const URL_LIKE = /:\/\/|www\.|@|\.[a-z]{2,}\/|\?\w+=/i;
+
+/** Thêm khoảng trắng còn thiếu và bỏ khoảng trắng thừa quanh dấu `"` (chỉ khi các dấu đi theo cặp). */
+function fixQuotes(s) {
+  const parts = s.split('"');
+  if (parts.length < 3 || parts.length % 2 === 0) return s;
+  for (let k = 0; k < parts.length - 1; k++) {
+    if (k % 2 === 0) { // mở
+      if (/[\p{L}\p{N},;:.!?)\]]$/u.test(parts[k])) parts[k] += ' ';
+      parts[k + 1] = parts[k + 1].replace(/^ +/, '');
+    } else { // đóng
+      parts[k] = parts[k].replace(/ +$/, '');
+      if (/^[\p{L}\p{N}]/u.test(parts[k + 1])) parts[k + 1] = ' ' + parts[k + 1];
+    }
+  }
+  return parts.join('"');
+}
+
+/** Sửa khoảng cách quanh dấu câu: thừa trước `.,;:!?`, thiếu sau dấu, thừa trong ngoặc / nháy kép. */
+function fixPunctuation(s) {
+  return fixQuotes(s)
+    .replace(/ +([.,;:!?]+)(?!\d)/g, '$1')
+    .replace(/([(\[]) +/g, '$1')
+    .replace(/ +([)\]])/g, '$1')
+    .replace(/\S+/g, tok => {
+      if (URL_LIKE.test(tok)) return tok;
+      return tok
+        .replace(/(?<!^(?:https?|ftp|mailto|tel|file))([,;:!?])(?=\p{L})/giu, '$1 ')
+        .replace(/\.{2,}(?=\p{L})/gu, m => m + ' ')
+        .replace(/(\p{L}*\p{Ll})\.(?=\p{Lu})/gu, (m, w) => (ABBREV.test(w) ? m : m + ' '));
+    });
+}
+
+/** Chuẩn hoá một đoạn text: NFC, bỏ ký tự XML không hợp lệ, đổi ký tự đặc biệt, gộp khoảng trắng, sửa khoảng cách dấu câu. */
 export function cleanText(s) {
+  return fixPunctuation(cleanBase(s)).trim();
+}
+
+function cleanBase(s) {
   return String(s)
     .replace(INVALID_XML, '')
     .replace(SPECIAL, c => CHAR_MAP.get(c))
     .replace(INVISIBLE, '')
     .replace(/[\s   -   　]+/g, ' ')
-    .trim()
     .normalize('NFC');
 }
 

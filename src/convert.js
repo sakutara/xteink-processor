@@ -32,5 +32,7 @@ export async function convert(file, report = () => {}) {
   const title = cleanText(book.meta.title || '') || baseName(file.name);
   const blob = await writeEpub({ ...book.meta, title }, chapters, cover);
   report('Hoàn tất', 1);
-  return { blob, filename: `${safeFileName(title) || safeFileName(baseName(file.name)) || 'ebook'} - x3.epub`, chapters: chapters.length, hasCover: !!cover };
+  const author = safeFileName((book.meta.author || []).filter(Boolean).join(', '));
+  const name = [safeFileName(title) || safeFileName(baseName(file.name)) || 'ebook', author, 'xte'].filter(Boolean).join(' - ');
+  return { blob, filename: `${name}.epub`, chapters: chapters.length, hasCover: !!cover };
 }

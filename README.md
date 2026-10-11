@@ -6,7 +6,7 @@ Chạy hoàn toàn trên trình duyệt, cài được như PWA và dùng đư�
 ## Cách dùng
 1. Mở trang, kéo thả hoặc chọn tệp ebook (EPUB, AZW3, AZW, MOBI, PRC, TXT, HTML, FB2).
 2. Chờ thanh tiến trình chạy xong.
-3. Bấm "Tải xuống `<title> - x3.epub`" (title lấy từ metadata, không có thì dùng tên file gốc) rồi chép vào máy đọc.
+3. Bấm "Tải xuống `<title> - <author> - xte.epub` (bỏ phần `<author>` nếu sách không có tác giả)" (title lấy từ metadata, không có thì dùng tên file gốc) rồi chép vào máy đọc.
 
 Đầu ra: mỗi chương một file `.xhtml` chỉ có một `<h1>` và các `<p>` thuần văn bản; mục lục `toc.ncx`;
 ảnh bìa (nếu có) thu nhỏ vừa 528×792, xám, JPEG chất lượng 0.4. Không có CSS, ảnh trong nội dung hay liên kết.
