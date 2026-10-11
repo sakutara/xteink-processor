@@ -13,7 +13,7 @@ const mapAll = (chars, to) => { for (const c of chars) CHAR_MAP.set(c, to); };
 mapAll('‘’‚‛′ʼ', "'");
 mapAll('“”„‟″«»', '"');
 mapAll('‐‑‒–—―−', '-');
-mapAll('•‣◦∙', '*');
+mapAll('•‣◦∙⊙', '*');
 mapAll('…', '...');
 mapAll('‥', '..');
 mapAll('，、﹐､', ',');
