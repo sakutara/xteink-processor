@@ -6,13 +6,42 @@ export const tick = () => new Promise(r => setTimeout(r, 0));
 
 const INVALID_XML = /[\u0000-\u0008\u000B\u000C\u000E-\u001F￾￿]|[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g;
 
-/** Chuẩn hoá một đoạn text: NFC, bỏ ký tự XML không hợp lệ, gộp khoảng trắng. */
+// Ký tự đặc biệt -> ký tự thường tương đương. Hán tự/kana/hangul/chữ Việt và mọi ký tự
+// không có trong bảng được giữ nguyên.
+const CHAR_MAP = new Map();
+const mapAll = (chars, to) => { for (const c of chars) CHAR_MAP.set(c, to); };
+mapAll('‘’‚‛′ʼ', "'");
+mapAll('“”„‟″«»', '"');
+mapAll('‐‑‒–—―−', '-');
+mapAll('•‣◦∙', '*');
+mapAll('…', '...');
+mapAll('‥', '..');
+mapAll('，、﹐､', ',');
+mapAll('。｡', '.');
+mapAll('「」『』《》〈〉﹁﹂﹃﹄', '"');
+mapAll('【】〖〗〔〕', '');
+mapAll('・･', '-');
+mapAll('〜～', '~');
+CHAR_MAP.set('【', '['); CHAR_MAP.set('】', ']');
+CHAR_MAP.set('〖', '['); CHAR_MAP.set('〗', ']');
+CHAR_MAP.set('〔', '('); CHAR_MAP.set('〕', ')');
+[['ﬀ', 'ff'], ['ﬁ', 'fi'], ['ﬂ', 'fl'], ['ﬃ', 'ffi'], ['ﬄ', 'ffl'], ['ﬅ', 'st'], ['ﬆ', 'st']]
+  .forEach(([k, v]) => CHAR_MAP.set(k, v));
+// Full-width ASCII (！ -> !, Ａ -> A ...); dấu câu Hán như ： ； ？ ！ （ ） cũng nằm trong dải này.
+for (let c = 0xFF01; c <= 0xFF5E; c++) {
+  const ch = String.fromCharCode(c);
+  if (!CHAR_MAP.has(ch)) CHAR_MAP.set(ch, String.fromCharCode(c - 0xFEE0));
+}
+const SPECIAL = new RegExp(`[${[...CHAR_MAP.keys()].join('')}]`, 'g');
+const INVISIBLE = /[​-‏‪-‮⁠-⁤­﻿︀-️￼�]/g;
+
+/** Chuẩn hoá một đoạn text: NFC, bỏ ký tự XML không hợp lệ, đổi ký tự đặc biệt, gộp khoảng trắng. */
 export function cleanText(s) {
   return String(s)
     .replace(INVALID_XML, '')
-    .replace(/[  -   　\t\r\n\f\v]+/g, ' ')
-    .replace(/[​-‍﻿­]/g, '')
-    .replace(/ {2,}/g, ' ')
+    .replace(SPECIAL, c => CHAR_MAP.get(c))
+    .replace(INVISIBLE, '')
+    .replace(/[\s   -   　]+/g, ' ')
     .trim()
     .normalize('NFC');
 }
