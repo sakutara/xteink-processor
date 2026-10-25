@@ -43,7 +43,7 @@
           <button type="button" id="devscan" class="btn">Quét mạng</button>
         </div>
         <div id="devmsg" class="stage" aria-live="polite"></div>
-        <div id="devhttps" class="hint small" hidden>Không kết nối được. Trang đang mở qua HTTPS còn máy chỉ có HTTP. Chrome/Edge (bản 142 trở lên): khi trình duyệt hỏi "Truy cập mạng cục bộ" hãy chọn Cho phép (nếu đã chặn: biểu tượng ổ khoá cạnh địa chỉ → Cài đặt trang web → Mạng cục bộ → Cho phép), rồi thử lại. Safari, Firefox và iPhone/iPad chưa hỗ trợ: dùng <a id="httplink" href="#">bản HTTP của trang này</a> (cần có mạng internet, không dùng offline được) hoặc <code>python3 -m http.server 8000</code> rồi mở <code>http://localhost:8000</code>.</div>
+        <div id="devhttps" class="hint small" hidden>Không kết nối được. Trang đang mở qua HTTPS còn máy chỉ có HTTP nên nhiều trình duyệt chặn (điện thoại, Safari, Firefox). Cách xử lý: dùng <a id="httplink" class="btn primary sm" href="#">Mở bản HTTP của trang</a> (cần internet, không offline). Trên Chrome/Edge 142+ cũng có thể chọn Cho phép khi trình duyệt hỏi quyền "Truy cập mạng cục bộ" rồi thử lại.</div>
       </section>
 
       <section id="devfiles" class="card dev-files" hidden>

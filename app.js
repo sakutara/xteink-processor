@@ -221,7 +221,7 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.addEventListener('controllerchange', () => setTimeout(checkOffline, 500));
   checkOffline();
 } else {
-  badge.textContent = 'Trình duyệt không hỗ trợ offline';
+  badge.textContent = location.protocol === 'http:' ? 'Bản HTTP: không dùng offline' : 'Trình duyệt không hỗ trợ offline';
 }
 
 // --- Tắt phóng to / thu nhỏ của trang (chụm hai ngón, ctrl/cmd + chuột, phím tắt)
@@ -500,8 +500,21 @@ $('rawfile').addEventListener('change', async () => {
 function initDevice() {
   const saved = dev.savedHost();
   if (saved) $('devhost').value = saved;
+  // Bản HTTP của trang: gọi được máy (HTTP) trên mọi trình duyệt, kể cả điện thoại; mang theo IP đang nhập.
+  $('httplink').addEventListener('click', () => {
+    const ip = $('devhost').value.trim();
+    $('httplink').href = `http://${location.host}${location.pathname}${ip ? '#ip=' + encodeURIComponent(ip) : ''}`;
+  });
   $('httplink').href = `http://${location.host}${location.pathname}`;
   setMode();
+  // Máy hiện QR dạng https://xte.fiddle.vn/#ip=192.168.1.50: quét xong tự kết nối.
+  const m = /[#&]ip=([^&]+)/.exec(location.hash);
+  if (m) {
+    history.replaceState(null, '', location.pathname + location.search);
+    $('devopen').click();
+    connectTo(decodeURIComponent(m[1]));
+    return;
+  }
   if (saved && !dev.isSecurePage()) dev.probe(saved, 2500).then(info => { if (info && !connected()) setConnected(saved, info); });
 }
 
