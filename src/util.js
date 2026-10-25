@@ -191,10 +191,10 @@ export function looksLikeChapterTitle(text) {
 }
 
 // --- Markup nội tuyến trong đoạn văn: ký tự private-use làm dấu hiệu, giữ nguyên là chuỗi để các bước
-// cắt chương/tách đoạn không phải đổi kiểu dữ liệu. Tag được hỗ trợ: i, b (nội tuyến), ul/ol/li (đầu đoạn).
-export const MK = { I1: '', I0: '', B1: '', B0: '', UL: '', OL: '' };
-const MK_ALL = /[-]/g;
-const TAGS = { '': ['i', 1], '': ['i', 0], '': ['b', 1], '': ['b', 0] };
+// cắt chương/tách đoạn không phải đổi kiểu dữ liệu. Tag được hỗ trợ: i, b (nội tuyến), ul/ol/li và blockquote (đánh dấu đầu đoạn).
+export const MK = { I1: '\uE000', I0: '\uE001', B1: '\uE002', B0: '\uE003', UL: '\uE010', OL: '\uE011', BQ: '\uE012' };
+const MK_ALL = /[\uE000-\uE003\uE010-\uE012]/g;
+const TAGS = { '\uE000': ['i', 1], '\uE001': ['i', 0], '\uE002': ['b', 1], '\uE003': ['b', 0] };
 
 /** Bỏ cặp tag rỗng và khoảng trắng thừa sinh ra quanh chúng. */
 export function tidyRich(s) {
@@ -208,10 +208,11 @@ export const richPlain = s => s.replace(MK_ALL, '');
 /** Bỏ ký tự private-use có sẵn trong nguồn (font icon...) để không bị nhầm với dấu hiệu. */
 export const stripPrivate = s => s.replace(/[-]/g, '');
 
-/** @returns {{kind:'ul'|'ol'|null, body:string}} */
+/** @returns {{kind:'ul'|'ol'|'bq'|null, body:string}} */
 export function splitBlock(s) {
   if (s[0] === MK.UL) return { kind: 'ul', body: s.slice(1) };
   if (s[0] === MK.OL) return { kind: 'ol', body: s.slice(1) };
+  if (s[0] === MK.BQ) return { kind: 'bq', body: s.slice(1) };
   return { kind: null, body: s };
 }
 

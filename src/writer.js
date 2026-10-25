@@ -14,20 +14,19 @@ function uuid() {
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
 }
 
-/** Các đoạn liền nhau cùng loại danh sách được gộp vào một ul/ol. */
+/** Các đoạn liền nhau cùng loại (ul, ol, blockquote) được gộp vào một khối. */
 function chapterBody(c) {
   const out = [];
-  let list = null;
+  let open = null;
   c.paras.forEach((p, k) => {
     const { kind, body } = splitBlock(p);
     const html = richToHtml(body, c.hits ? c.hits[k] : []);
-    if (list && list !== kind) { out.push(`</${list}>`); list = null; }
-    if (kind) {
-      if (!list) { out.push(`<${kind}>`); list = kind; }
-      out.push(`<li>${html}</li>`);
-    } else out.push(`<p>${html}</p>`);
+    const wrap = kind === 'bq' ? 'blockquote' : kind;
+    if (open && open !== wrap) { out.push(`</${open}>`); open = null; }
+    if (wrap && !open) { out.push(`<${wrap}>`); open = wrap; }
+    out.push(kind === 'ul' || kind === 'ol' ? `<li>${html}</li>` : `<p>${html}</p>`);
   });
-  if (list) out.push(`</${list}>`);
+  if (open) out.push(`</${open}>`);
   return out.join('\n');
 }
 

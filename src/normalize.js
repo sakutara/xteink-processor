@@ -56,6 +56,7 @@ function flatten(doc, docHref, targets, out) {
   const depth = { i: 0, b: 0 };
   let pendingLi = null; // MK.UL | MK.OL cho đoạn kế tiếp
   let curLi = null;     // mục li đang mở: {item}
+  let bqDepth = 0;
   let listKind = [];    // ngăn xếp ul/ol đang mở
 
   const bufPlain = () => richPlain(buf.join(''));
@@ -72,7 +73,7 @@ function flatten(doc, docHref, targets, out) {
         const it = curLi.item;
         it.rich += ' ' + rich; it.text += ' ' + plain;
       } else {
-        const item = { t: 'p', text: plain, rich: (pendingLi || '') + rich, link, cls: flagCls };
+        const item = { t: 'p', text: plain, rich: (pendingLi || (bqDepth ? MK.BQ : '')) + rich, link, cls: flagCls };
         if (pendingLi && curLi) curLi.item = item;
         out.push(item);
       }
@@ -184,6 +185,7 @@ function flatten(doc, docHref, targets, out) {
       pendingLi = listKind[listKind.length - 1] === 'ol' ? MK.OL : MK.UL;
     }
     if (isList) listKind.push(name);
+    if (name === 'blockquote' && !headingDepth) { flush(); bqDepth++; }
     const savedLi = curLi;
     if (isLi) curLi = { item: null };
     if (inl.i) openTag('i');
@@ -195,6 +197,7 @@ function flatten(doc, docHref, targets, out) {
       if (inl.i) closeTag('i');
       if (isLi) { flush(); curLi = savedLi; pendingLi = null; }
       if (isList) { listKind.pop(); pendingLi = null; }
+      if (name === 'blockquote' && !headingDepth) bqDepth--;
     }
   };
 
@@ -340,6 +343,12 @@ export async function normalize(book, report) {
       }
     }
     if (part.length) final.push({ title: k === 1 ? ch.title : `${ch.title} (${k})`, paras: part });
+  }
+  // Sách bọc gần hết nội dung trong blockquote thì bỏ thụt lề, chỉ giữ ở nơi nó thật sự là trích dẫn
+  for (const c of final) {
+    let bq = 0, all = 0;
+    for (const p of c.paras) { all += p.length; if (p[0] === MK.BQ) bq += p.length; }
+    if (bq > all * 0.6) c.paras = c.paras.map(p => (p[0] === MK.BQ ? p.slice(1) : p));
   }
   final.forEach((c, i) => { if (!c.title) c.title = `Phần ${i + 1}`; });
   return final;
