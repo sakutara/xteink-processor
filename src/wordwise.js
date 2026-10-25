@@ -4,6 +4,8 @@
 import { escapeXml, richPlain, splitBlock } from './util.js';
 
 export const LEVELS = [0, 1, 2, 3];
+// Ngôn ngữ của chú giải. Từ luôn là tiếng Anh; mỗi ngôn ngữ có một file tsv riêng cùng bộ từ và tier.
+export const GLOSS_LANGS = ['en', 'vi'];
 
 const EN_STOP = new Set('the of and to a in that is was he it for with as his on be at by had not are but from or have an they which you were her all she there would their we him been has when who will more no if out so said what up its about into than them can only other new some could time these two may then do first any my now such like our over man me even most made after also did many before must through back years where much your way well down should because each just those people how too little state good very make world still own see men work long get here between both life being under never day same another know while last might us great old year off come since against go came right used take three'.split(' '));
 
@@ -19,13 +21,15 @@ export function parseDict(text) {
   return map;
 }
 
-let dictPromise = null;
-export function loadDict() {
-  dictPromise ||= fetch(new URL('../data/wordwise-en.tsv', import.meta.url))
+const dictPromises = {};
+/** @param {string} lang  'en' | 'vi' (chú giải) */
+export function loadDict(lang = 'en') {
+  if (!GLOSS_LANGS.includes(lang)) throw new Error(`Ngôn ngữ chú giải không hỗ trợ: ${lang}`);
+  dictPromises[lang] ||= fetch(new URL(`../data/wordwise-${lang}.tsv`, import.meta.url))
     .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.text(); })
     .then(parseDict)
-    .catch(e => { dictPromise = null; throw e; });
-  return dictPromise;
+    .catch(e => { delete dictPromises[lang]; throw e; });
+  return dictPromises[lang];
 }
 
 /** Sách có phải tiếng Anh không: ưu tiên metadata, nếu thiếu thì đoán theo từ chức năng thường gặp. */

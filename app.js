@@ -17,9 +17,13 @@ function formatSize(n) {
 }
 
 const WW_KEY = 'xteink-wordwise';
+const WW_LANG_KEY = 'xteink-wordwise-lang';
 const wwSel = $('wordwise');
-try { const v = localStorage.getItem(WW_KEY); if (v && wwSel.querySelector(`option[value="${v}"]`)) wwSel.value = v; } catch { /* bỏ qua */ }
-wwSel.addEventListener('change', () => { try { localStorage.setItem(WW_KEY, wwSel.value); } catch { /* bỏ qua */ } });
+const wwLangSel = $('wordwiselang');
+for (const [sel, key] of [[wwSel, WW_KEY], [wwLangSel, WW_LANG_KEY]]) {
+  try { const v = localStorage.getItem(key); if (v && sel.querySelector(`option[value="${v}"]`)) sel.value = v; } catch { /* bỏ qua */ }
+  sel.addEventListener('change', () => { try { localStorage.setItem(key, sel.value); } catch { /* bỏ qua */ } });
+}
 
 async function handleFile(file) {
   if (!file || busy) return;
@@ -33,7 +37,7 @@ async function handleFile(file) {
     const res = await convert(file, (msg, frac) => {
       $('stage').textContent = msg;
       $('barfill').style.width = `${Math.round(Math.max(0.02, Math.min(1, frac)) * 100)}%`;
-    }, { wordwise: +wwSel.value });
+    }, { wordwise: +wwSel.value, wordwiseLang: wwLangSel.value });
     currentUrl = URL.createObjectURL(res.blob);
     const a = $('download');
     a.href = currentUrl;
@@ -41,7 +45,7 @@ async function handleFile(file) {
     a.textContent = `Tải xuống ${res.filename}`;
     $('summary').textContent =
       `${res.chapters} chương · ${formatSize(res.blob.size)}${res.hasCover ? ' · có ảnh bìa' : ''}`
-      + (res.wordwise.level ? ` · Wordwise cấp ${res.wordwise.level}: ${res.wordwise.words} từ` : '')
+      + (res.wordwise.level ? ` · Wordwise cấp ${res.wordwise.level} (${res.wordwise.lang === 'vi' ? 'tiếng Việt' : 'tiếng Anh'}): ${res.wordwise.words} từ` : '')
       + (res.wordwise.skipped ? ` · ${res.wordwise.skipped}` : '');
     show('done');
   } catch (e) {

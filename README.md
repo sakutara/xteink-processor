@@ -19,13 +19,17 @@ dòng bắt đầu bằng gạch đầu dòng thành `<li>`. Chương lấy từ
 Bố cục nhiều cột, bảng, công thức và chữ dọc không được dựng lại; ảnh bị bỏ như các định dạng khác.
 
 ## Wordwise (sách tiếng Anh)
-Chọn cấp Wordwise 0–3 trước khi thả tệp. Cấp 0 là tắt; cấp 1 chỉ chú giải bộ từ khó nhất, cấp 2 thêm bộ từ ít khó hơn,
+Chọn cấp Wordwise 0–3 và ngôn ngữ chú giải (tiếng Anh hoặc tiếng Việt) trước khi thả tệp. Từ luôn là tiếng Anh. Cấp 0 là tắt; cấp 1 chỉ chú giải bộ từ khó nhất, cấp 2 thêm bộ từ ít khó hơn,
 cấp 3 thêm cả bộ từ dễ hơn nữa (luôn ưu tiên từ khó trước). Mỗi từ chỉ được chú giải ở lần xuất hiện đầu tiên trong mỗi chương;
 tên riêng và từ viết hoa toàn bộ bị bỏ qua. Sách không phải tiếng Anh (theo metadata hoặc đoán theo nội dung) thì bỏ qua.
 
 Chú giải được ghi dạng `<ruby>từ<rp>(</rp><rt>nghĩa</rt><rp>)</rp></ruby>`: máy đọc hỗ trợ ruby sẽ hiện nghĩa phía trên từ,
 máy không hỗ trợ sẽ hiện `từ(nghĩa)`. Từ điển `data/wordwise-en.tsv` (WordNet + wordfreq) sinh bằng
 `python3 tools/build_wordwise.py` (cần `pip install wordfreq nltk` và dữ liệu WordNet). Nghĩa lấy theo nghĩa phổ biến nhất nên có thể không khớp ngữ cảnh.
+
+Chú giải tiếng Việt lấy từ `data/wordwise-vi.tsv`, sinh bằng `tools/build_wordwise_vi.py` từ `av.txt` của gói npm `tratu-core`
+(từ điển Anh–Việt). Chỉ có khoảng 20.000 trong 24.000 từ có nghĩa; từ thiếu sẽ không được chú giải. Nghĩa được rút tự động
+nên có lỗi (ví dụ dịch sai hoặc cụt), chưa được soát tay.
 
 ## Chuẩn bị hình cho X3
 Mục "Chuẩn bị hình cho X3" nhận hình bất kỳ (JPG, PNG, WebP, GIF, BMP...), chuyển xám, thu/phóng vừa khung 528×792
