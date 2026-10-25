@@ -153,8 +153,8 @@ footer p { margin: 0; }
 
 /* Bố cục gọn: không cuộn trên màn hình ngắn / ngang */
 .opts .hint.small { min-height: 1.2em; }
-@media (min-width: 760px) {
-  .tabs { order: 0; flex: 0 0 340px; }
+@media (min-width: 760px), (min-width: 560px) and (max-height: 520px) {
+  .tabs { order: 0; flex: 0 1 340px; min-width: 0; }
   .top { flex-wrap: nowrap; }
   .tool-epub { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); align-items: stretch; }
   .tool-epub > .opts { grid-column: 1; grid-row: 1 / span 4; align-self: start; }
@@ -177,7 +177,7 @@ footer p { margin: 0; }
   .toggle-side { font-size: .8rem; }
   .seg span { padding: 5px 5px; }
 }
-@media (max-width: 759px) {
+@media (max-width: 759px) and (min-height: 521px), (max-width: 559px) {
   /* đang xử lý / có kết quả: ẩn tuỳ chọn cho gọn, quay lại bằng "Chuyển tệp khác" */
   .tool-epub:has(#drop[hidden]) .opts { display: none; }
 }
@@ -218,4 +218,13 @@ footer p { margin: 0; }
   .tool-epub > .drop { bottom: 12px; }
   .tool-epub:has(#drop[hidden]) .opts { display: block; }
   footer { display: none; }
+}
+
+/* Màn gần vuông, thấp (ví dụ màn ngoài của máy gập khi xoay ngang) */
+@media (min-width: 560px) and (max-width: 759px) and (max-height: 520px) {
+  h1 { white-space: nowrap; font-size: 1.2rem; }
+  .tabs { flex-basis: 250px; }
+  .tool-epub { grid-template-columns: minmax(0, 6fr) minmax(0, 5fr); }
+  .seg span { padding: 5px 7px; font-size: .82rem; }
+  .row-label { font-size: .88rem; }
 }
