@@ -16,6 +16,11 @@ function formatSize(n) {
   return n > 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`;
 }
 
+const WW_KEY = 'xteink-wordwise';
+const wwSel = $('wordwise');
+try { const v = localStorage.getItem(WW_KEY); if (v && wwSel.querySelector(`option[value="${v}"]`)) wwSel.value = v; } catch { /* bỏ qua */ }
+wwSel.addEventListener('change', () => { try { localStorage.setItem(WW_KEY, wwSel.value); } catch { /* bỏ qua */ } });
+
 async function handleFile(file) {
   if (!file || busy) return;
   busy = true;
@@ -28,14 +33,16 @@ async function handleFile(file) {
     const res = await convert(file, (msg, frac) => {
       $('stage').textContent = msg;
       $('barfill').style.width = `${Math.round(Math.max(0.02, Math.min(1, frac)) * 100)}%`;
-    });
+    }, { wordwise: +wwSel.value });
     currentUrl = URL.createObjectURL(res.blob);
     const a = $('download');
     a.href = currentUrl;
     a.download = res.filename;
     a.textContent = `Tải xuống ${res.filename}`;
     $('summary').textContent =
-      `${res.chapters} chương · ${formatSize(res.blob.size)}${res.hasCover ? ' · có ảnh bìa' : ''}`;
+      `${res.chapters} chương · ${formatSize(res.blob.size)}${res.hasCover ? ' · có ảnh bìa' : ''}`
+      + (res.wordwise.level ? ` · Wordwise cấp ${res.wordwise.level}: ${res.wordwise.words} từ` : '')
+      + (res.wordwise.skipped ? ` · ${res.wordwise.skipped}` : '');
     show('done');
   } catch (e) {
     console.error(e);

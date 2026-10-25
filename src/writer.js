@@ -20,7 +20,7 @@ export function chapterFile(i) {
 
 /**
  * @param {{title:string, author:string[], language:string}} meta
- * @param {{title:string, paras:string[]}[]} chapters
+ * @param {{title:string, paras:string[], html?:string[]}[]} chapters  (html: đoạn đã dựng sẵn markup, ví dụ Wordwise)
  * @param {Uint8Array|null} coverJpeg
  * @returns {Promise<Blob>}
  */
@@ -41,7 +41,7 @@ export async function writeEpub(meta, chapters, coverJpeg) {
 
   chapters.forEach((c, i) => {
     const t = escapeXml(c.title);
-    const body = c.paras.map(p => `<p>${escapeXml(p)}</p>`).join('\n');
+    const body = c.paras.map((p, k) => `<p>${c.html ? c.html[k] : escapeXml(p)}</p>`).join('\n');
     zip.file(`OEBPS/text/${chapterFile(i)}`,
       `${XHTML_HEAD}<head><title>${t}</title></head>\n<body><h1>${t}</h1>\n${body}</body></html>\n`, NOF);
   });

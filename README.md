@@ -12,6 +12,15 @@ Chạy hoàn toàn trên trình duyệt, cài được như PWA và dùng đư�
 ảnh bìa (nếu có) thu nhỏ vừa 528×792, xám, JPEG chất lượng 0.4. Không có CSS, ảnh trong nội dung hay liên kết.
 Sách có DRM không chuyển đổi được.
 
+## Wordwise (sách tiếng Anh)
+Chọn cấp Wordwise 0–3 trước khi thả tệp. Cấp 0 là tắt; cấp 1 chỉ chú giải bộ từ khó nhất, cấp 2 thêm bộ từ ít khó hơn,
+cấp 3 thêm cả bộ từ dễ hơn nữa (luôn ưu tiên từ khó trước). Mỗi từ chỉ được chú giải ở lần xuất hiện đầu tiên trong mỗi chương;
+tên riêng và từ viết hoa toàn bộ bị bỏ qua. Sách không phải tiếng Anh (theo metadata hoặc đoán theo nội dung) thì bỏ qua.
+
+Chú giải được ghi dạng `<ruby>từ<rp>(</rp><rt>nghĩa</rt><rp>)</rp></ruby>`: máy đọc hỗ trợ ruby sẽ hiện nghĩa phía trên từ,
+máy không hỗ trợ sẽ hiện `từ(nghĩa)`. Từ điển `data/wordwise-en.tsv` (WordNet + wordfreq) sinh bằng
+`python3 tools/build_wordwise.py` (cần `pip install wordfreq nltk` và dữ liệu WordNet). Nghĩa lấy theo nghĩa phổ biến nhất nên có thể không khớp ngữ cảnh.
+
 ## Chuẩn bị hình cho X3
 Mục "Chuẩn bị hình cho X3" nhận hình bất kỳ (JPG, PNG, WebP, GIF, BMP...), chuyển xám, thu/phóng vừa khung 528×792
 (độ phân giải panel X3; giữ tỉ lệ, phần thiếu bù nền trắng, căn giữa) rồi xuất:
