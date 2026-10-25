@@ -27,6 +27,7 @@ function setRadio(name, value) {
   const r = radios(name).find(x => x.value === value);
   if (r) r.checked = true;
 }
+const wwLang = () => ($('wwlang').checked ? 'vi' : 'en');
 const WW_HINTS = {
   0: 'Tắt: không thêm chú giải.',
   1: 'Ít: chỉ chú giải bộ từ khó nhất.',
@@ -36,12 +37,16 @@ const WW_HINTS = {
 function syncWordwise() {
   const level = radioValue('wwlevel') || '0';
   $('wwhint').textContent = WW_HINTS[level];
-  $('wwlangfield').disabled = level === '0';
+  $('wwlang').disabled = level === '0';
+  $('wwlangrow').classList.toggle('off', level === '0');
 }
-for (const [name, key] of [['wwlevel', 'xteink-wordwise'], ['wwlang', 'xteink-wordwise-lang']]) {
-  const saved = store.get(key);
-  if (saved) setRadio(name, saved);
-  for (const r of radios(name)) r.addEventListener('change', () => { store.set(key, radioValue(name)); syncWordwise(); });
+{
+  const saved = store.get('xteink-wordwise');
+  if (saved) setRadio('wwlevel', saved);
+  for (const r of radios('wwlevel')) r.addEventListener('change', () => { store.set('xteink-wordwise', radioValue('wwlevel')); syncWordwise(); });
+  const lang = $('wwlang');
+  lang.checked = store.get('xteink-wordwise-lang') === 'vi';
+  lang.addEventListener('change', () => store.set('xteink-wordwise-lang', wwLang()));
 }
 syncWordwise();
 
@@ -74,7 +79,7 @@ async function handleFile(file) {
     const res = await convert(file, (msg, frac) => {
       $('stage').textContent = msg;
       $('barfill').style.width = `${Math.round(Math.max(0.02, Math.min(1, frac)) * 100)}%`;
-    }, { wordwise: +radioValue('wwlevel'), wordwiseLang: radioValue('wwlang') });
+    }, { wordwise: +radioValue('wwlevel'), wordwiseLang: wwLang() });
     currentUrl = URL.createObjectURL(res.blob);
     const a = $('download');
     a.href = currentUrl;

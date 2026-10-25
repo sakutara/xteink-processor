@@ -36,24 +36,26 @@
       </div>
       <p class="hint">Thêm nghĩa ngắn ngay cạnh từ khó, ưu tiên từ khó nhất trước.</p>
 
-      <fieldset class="field">
-        <legend>Số lượng từ</legend>
-        <div class="seg seg4" role="radiogroup" aria-label="Số lượng từ được chú giải">
+      <div class="row">
+        <span class="row-label" id="wwlevel-label">Số lượng từ</span>
+        <div class="seg seg4 sm" role="radiogroup" aria-labelledby="wwlevel-label">
           <label><input type="radio" name="wwlevel" value="0" checked><span>Tắt</span></label>
           <label><input type="radio" name="wwlevel" value="1"><span>Ít</span></label>
           <label><input type="radio" name="wwlevel" value="2"><span>Vừa</span></label>
           <label><input type="radio" name="wwlevel" value="3"><span>Nhiều</span></label>
         </div>
-        <p id="wwhint" class="hint small" aria-live="polite"></p>
-      </fieldset>
+      </div>
+      <p id="wwhint" class="hint small" aria-live="polite"></p>
 
-      <fieldset class="field" id="wwlangfield">
-        <legend>Chú giải bằng</legend>
-        <div class="seg seg2 switch" role="radiogroup" aria-label="Ngôn ngữ chú giải">
-          <label><input type="radio" name="wwlang" value="en" checked><span>English</span></label>
-          <label><input type="radio" name="wwlang" value="vi"><span>Tiếng Việt</span></label>
-        </div>
-      </fieldset>
+      <div class="row" id="wwlangrow">
+        <span class="row-label" id="wwlang-label">Chú giải bằng</span>
+        <label class="toggle">
+          <span class="toggle-side" data-side="en">English</span>
+          <input type="checkbox" id="wwlang" role="switch" aria-labelledby="wwlang-label">
+          <span class="toggle-track" aria-hidden="true"></span>
+          <span class="toggle-side" data-side="vi">Tiếng Việt</span>
+        </label>
+      </div>
     </section>
 
     <section id="drop" class="drop" tabindex="0" role="button" aria-label="Chọn hoặc kéo thả tệp ebook">
