@@ -4,13 +4,19 @@ Webapp thuần client (HTML/CSS/JS, không cần build) chuyển ebook sang EPUB
 Chạy hoàn toàn trên trình duyệt, cài được như PWA và dùng được khi offline.
 
 ## Cách dùng
-1. Mở trang, kéo thả hoặc chọn tệp ebook (EPUB, AZW3, AZW, MOBI, PRC, TXT, HTML, FB2).
+1. Mở trang, kéo thả hoặc chọn tệp ebook (EPUB, AZW3, AZW, MOBI, PRC, TXT, HTML, FB2, PDF có lớp văn bản).
 2. Chờ thanh tiến trình chạy xong.
 3. Bấm "Tải xuống `<title> - <author> - xte.epub` (bỏ phần `<author>` nếu sách không có tác giả)" (title lấy từ metadata, không có thì dùng tên file gốc) rồi chép vào máy đọc.
 
 Đầu ra: mỗi chương một file `.xhtml` chỉ có một `<h1>`, các `<p>` văn bản và vài tag nhẹ: `<i>`, `<b>` (từ `i/em/cite`, `b/strong`, hoặc style/class in nghiêng, in đậm), `<blockquote>` (đoạn trích dẫn; nếu hơn 60% chương nằm trong blockquote thì bỏ), `<ul>`, `<ol>`, `<li>` (danh sách phẳng, không lồng; nhiều đoạn trong một `li` được gộp lại). Tất cả tag không có attribute; mục lục `toc.ncx`;
 ảnh bìa (nếu có) thu nhỏ vừa 528×792, xám, JPEG chất lượng 0.4. Không có CSS, ảnh trong nội dung hay liên kết.
 Sách có DRM không chuyển đổi được.
+
+## PDF
+Chỉ hỗ trợ PDF có lớp văn bản (pdf.js trích chữ, không OCR). PDF quét ảnh không có chữ, hoặc PDF có mật khẩu, sẽ báo lỗi và không chuyển đổi.
+Dòng chữ được ghép lại thành đoạn (nối từ bị ngắt bằng dấu gạch cuối dòng, nối đoạn qua trang), bỏ header/footer lặp lại và số trang,
+dòng bắt đầu bằng gạch đầu dòng thành `<li>`. Chương lấy từ outline của PDF, không có thì lấy từ dòng chữ cỡ lớn hơn thân bài.
+Bố cục nhiều cột, bảng, công thức và chữ dọc không được dựng lại; ảnh bị bỏ như các định dạng khác.
 
 ## Wordwise (sách tiếng Anh)
 Chọn cấp Wordwise 0–3 trước khi thả tệp. Cấp 0 là tắt; cấp 1 chỉ chú giải bộ từ khó nhất, cấp 2 thêm bộ từ ít khó hơn,

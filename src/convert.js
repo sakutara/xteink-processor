@@ -5,7 +5,7 @@ import { processCover } from './cover.js';
 import { writeEpub } from './writer.js';
 import { loadDict, isEnglish, applyWordwise } from './wordwise.js';
 
-export const SUPPORTED = ['epub', 'azw3', 'azw', 'mobi', 'prc', 'txt', 'html', 'htm', 'xhtml', 'fb2'];
+export const SUPPORTED = ['epub', 'azw3', 'azw', 'mobi', 'prc', 'txt', 'html', 'htm', 'xhtml', 'fb2', 'pdf'];
 
 async function readerFor(ext) {
   switch (ext) {
@@ -13,9 +13,10 @@ async function readerFor(ext) {
     case 'mobi': case 'azw': case 'azw3': case 'prc': return (await import('./readers/mobi.js')).readMobi;
     case 'fb2': return (await import('./readers/fb2.js')).readFb2;
     case 'html': case 'htm': case 'xhtml': return (await import('./readers/html.js')).readHtml;
+    case 'pdf': return (await import('./readers/pdf.js')).readPdf;
     case 'txt': return (await import('./readers/txt.js')).readTxt;
     default:
-      throw new UserError(`Định dạng ".${ext}" chưa được hỗ trợ. Hỗ trợ: EPUB, AZW3, AZW, MOBI, PRC, TXT, HTML, FB2.`);
+      throw new UserError(`Định dạng ".${ext}" chưa được hỗ trợ. Hỗ trợ: EPUB, AZW3, AZW, MOBI, PRC, TXT, HTML, FB2, PDF.`);
   }
 }
 
