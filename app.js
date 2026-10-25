@@ -212,3 +212,12 @@ if ('serviceWorker' in navigator) {
 } else {
   badge.textContent = 'Trình duyệt không hỗ trợ offline';
 }
+
+// --- Tắt phóng to / thu nhỏ của trang (chụm hai ngón, ctrl/cmd + chuột, phím tắt)
+for (const type of ['gesturestart', 'gesturechange', 'gestureend']) {
+  document.addEventListener(type, e => e.preventDefault(), { passive: false });
+}
+document.addEventListener('wheel', e => { if (e.ctrlKey) e.preventDefault(); }, { passive: false });
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && ['+', '-', '=', '0', 'Add', 'Subtract'].includes(e.key)) e.preventDefault();
+});
