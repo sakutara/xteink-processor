@@ -27,6 +27,20 @@
       <div class="formats">EPUB · AZW3 · AZW · MOBI · PRC · TXT · HTML · FB2</div>
     </section>
 
+    <section id="imgprep" class="card imgprep">
+      <div class="drop-title">Chuẩn bị hình cho X3</div>
+      <p class="stage">Hình bất kỳ → xám, vừa khung 528×792 (giữ tỉ lệ, phần thừa nền trắng), xuất BMP 4 mức xám cho CrossInk (kèm PNG).</p>
+      <button type="button" id="imgpick" class="btn">Chọn hình</button>
+      <input id="imgfile" type="file" hidden accept="image/*">
+      <div id="imgresult" hidden>
+        <img id="imgpreview" class="preview" alt="Xem trước hình đã xử lý">
+        <div id="imgsummary" class="stage"></div>
+        <a id="imgdownload" class="btn primary" href="#">Tải xuống BMP</a>
+        <a id="imgdownloadpng" class="link" href="#">Tải PNG xám 8-bit</a>
+      </div>
+      <div id="imgerror" class="stage err" role="alert" hidden></div>
+    </section>
+
     <section id="progress" class="card" hidden aria-live="polite">
       <div id="fname" class="fname"></div>
       <div class="bar"><div id="barfill"></div></div>

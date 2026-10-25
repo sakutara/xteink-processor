@@ -12,6 +12,14 @@ Chạy hoàn toàn trên trình duyệt, cài được như PWA và dùng đư�
 ảnh bìa (nếu có) thu nhỏ vừa 528×792, xám, JPEG chất lượng 0.4. Không có CSS, ảnh trong nội dung hay liên kết.
 Sách có DRM không chuyển đổi được.
 
+## Chuẩn bị hình cho X3
+Mục "Chuẩn bị hình cho X3" nhận hình bất kỳ (JPG, PNG, WebP, GIF, BMP...), chuyển xám, thu/phóng vừa khung 528×792
+(độ phân giải panel X3; giữ tỉ lệ, phần thiếu bù nền trắng, căn giữa) rồi xuất:
+- `<tên gốc>-x3.bmp`: BMP 4-bit không nén, top-down, palette đúng 4 mức xám gốc (0/85/170/255), đã dither Floyd–Steinberg.
+  CrossInk chỉ đọc BMP làm hình chờ (Bitmap.cpp chấp nhận BI_RGB 1/2/4/8/24/32-bit) và với palette này nó ánh xạ thẳng
+  vào 4 mức xám của màn hình, không xử lý lại. Chép vào thư mục `.sleep/` (hoặc `sleep.bmp` ở gốc thẻ nhớ).
+- `<tên gốc>-x3.png`: PNG xám 8-bit, không dither, để xem hoặc dùng làm overlay (CrossInk chỉ nhận PNG cho chế độ Page Overlay).
+
 ## Chạy thử cục bộ
 ```sh
 python3 -m http.server 8000
