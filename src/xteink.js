@@ -20,7 +20,10 @@ async function timedFetch(url, opts = {}, ms = 8000) {
   const ctl = new AbortController();
   const t = setTimeout(() => ctl.abort(), ms);
   try {
-    return await fetch(url, { ...opts, signal: opts.signal ? anySignal(opts.signal, ctl.signal) : ctl.signal });
+    // Chrome: yêu cầu từ trang HTTPS tới mạng cục bộ cần hỏi quyền (LNA); tên miền thường phải khai báo đích.
+    const host = new URL(url).hostname;
+    const named = !/^[\d.]+$/.test(host) && !host.endsWith('.local');
+    return await fetch(url, { ...(named ? { targetAddressSpace: 'local' } : {}), ...opts, signal: opts.signal ? anySignal(opts.signal, ctl.signal) : ctl.signal });
   } finally {
     clearTimeout(t);
   }

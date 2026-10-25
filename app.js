@@ -350,7 +350,6 @@ async function scanNetwork() {
   scanCtl = new AbortController();
   const btn = $('devscan');
   btn.textContent = 'Dừng quét';
-  $('devhttps').hidden = !dev.isSecurePage();
   const prefix = (/^\d+\.\d+\.\d+/.exec($('devhost').value) || [])[0];
   let found = null;
   try {
@@ -360,7 +359,10 @@ async function scanNetwork() {
     btn.textContent = 'Quét mạng';
   }
   if (found) { devMsg(''); setConnected(found.host, found.info); }
-  else devMsg('Không tìm thấy máy Xteink. Nhập IP thủ công (xem trên màn hình máy khi bật truyền tệp).', true);
+  else {
+    devMsg('Không tìm thấy máy Xteink. Nhập IP thủ công (xem trên màn hình máy khi bật truyền tệp).', true);
+    $('devhttps').hidden = !dev.isSecurePage();
+  }
 }
 $('devconnect').addEventListener('click', () => connectTo($('devhost').value));
 $('devhost').addEventListener('keydown', e => { if (e.key === 'Enter') connectTo($('devhost').value); });
@@ -498,7 +500,7 @@ $('rawfile').addEventListener('change', async () => {
 function initDevice() {
   const saved = dev.savedHost();
   if (saved) $('devhost').value = saved;
-  if (dev.isSecurePage()) $('devhttps').hidden = false;
+  $('httplink').href = `http://${location.host}${location.pathname}`;
   setMode();
   if (saved && !dev.isSecurePage()) dev.probe(saved, 2500).then(info => { if (info && !connected()) setConnected(saved, info); });
 }

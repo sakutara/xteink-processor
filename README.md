@@ -19,7 +19,7 @@ App có hai trạng thái. Khi ngắt kết nối, app chạy như bản trướ
 3. Duyệt thư mục, đổi tên, xoá, tạo thư mục; "Di chuyển" (chỉ tệp) rồi mở thư mục đích và bấm "Dán vào đây".
 4. "Upload" hiện lại công cụ sách và ảnh (không có nút tải xuống, chỉ có "Gửi vào Xteink"), hoặc gửi tệp bất kỳ. Gửi xong cửa sổ upload đóng lại và danh sách file được làm mới.
 
-Lưu ý: máy chỉ có HTTP, nên trang phải mở qua HTTP (ví dụ `http://localhost:8000`) hoặc cho phép "Nội dung không an toàn" cho trang HTTPS, nếu không trình duyệt chặn (mixed content).
+Lưu ý (HTTPS và máy chỉ có HTTP): Chrome/Edge 142+ cho phép trang HTTPS gọi tới máy trong mạng nội bộ (IP riêng hoặc `*.local`) sau khi người dùng bấm Cho phép "Truy cập mạng cục bộ"; yêu cầu này được miễn chặn mixed content. Safari, Firefox và iOS chưa hỗ trợ nên trình duyệt chặn. Khi đó mở app qua HTTP: `http://localhost:8000` (chạy server cục bộ như mục dưới) hoặc bản HTTP của trang (GitHub Pages với tên miền riêng: bỏ chọn "Enforce HTTPS"; bản HTTP không có service worker nên không offline được). Ứng dụng chỉ tự kết nối lại máy đã lưu khi mở trang qua HTTP, để không bật hộp thoại xin quyền ngay khi vào trang.
 
 ## PDF
 Chỉ hỗ trợ PDF có lớp văn bản (pdf.js trích chữ, không OCR). PDF quét ảnh không có chữ, hoặc PDF có mật khẩu, sẽ báo lỗi và không chuyển đổi.
