@@ -111,6 +111,7 @@ async function handleImage(file) {
 $('imgpick').addEventListener('click', () => $('imgfile').click());
 $('imgfile').addEventListener('change', () => { const f = $('imgfile').files[0]; $('imgfile').value = ''; handleImage(f); });
 window.__xteinkImage = handleImage;
+window.__xteinkEditor = editor;
 
 // Test hook: cho phép nạp tệp bằng script.
 window.__xteinkConvert = handleFile;

@@ -3,6 +3,7 @@ import { X3_WIDTH, X3_HEIGHT, transformImage, composeGray, encodeOutputs } from 
 
 const $ = id => document.getElementById(id);
 const HANDLE = matchMedia('(pointer: coarse)').matches ? 28 : 16;   // bán kính vùng bắt góc (px màn hình)
+const SNAP_PX = 8;    // ngưỡng hít (px màn hình)
 const MIN_PX = 24;   // cạnh nhỏ nhất của khung cắt (px màn hình)
 const ASPECTS = { free: null, x3: X3_WIDTH / X3_HEIGHT };
 
@@ -62,6 +63,14 @@ export function createEditor({ onApply, onCancel }) {
       ctx.moveTo(x, y + h * i / 3); ctx.lineTo(x + w, y + h * i / 3);
     }
     ctx.stroke();
+    if (drag && snapOn()) {
+      const g = guides();
+      ctx.strokeStyle = '#ff2d95'; ctx.lineWidth = 1; ctx.setLineDash([5, 4]);
+      ctx.beginPath();
+      for (const gx of g.v) { ctx.moveTo(gx * scale, 0); ctx.lineTo(gx * scale, H); }
+      for (const gy of g.h) { ctx.moveTo(0, gy * scale); ctx.lineTo(W, gy * scale); }
+      ctx.stroke(); ctx.setLineDash([]);
+    }
     ctx.fillStyle = '#fff'; ctx.strokeStyle = '#000';
     for (const [cx, cy] of [[x, y], [x + w, y], [x, y + h], [x + w, y + h]]) {
       ctx.beginPath(); ctx.rect(cx - 6, cy - 6, 12, 12); ctx.fill(); ctx.stroke();
@@ -82,6 +91,36 @@ export function createEditor({ onApply, onCancel }) {
     layout();
     if (resetCrop) crop = fitCrop(aspect());
     schedule();
+  }
+
+  // --- hít (snap) vào mép và đường giữa của ảnh
+  const snapOn = () => $('edsnap').checked;
+  // Trả về giá trị v hoặc điểm gần nhất trong `targets` nếu nằm trong ngưỡng.
+  function snapValue(v, targets) {
+    const th = SNAP_PX / scale;
+    let best = v, bd = th;
+    for (const t of targets) { const d = Math.abs(v - t); if (d <= bd) { bd = d; best = t; } }
+    return best;
+  }
+  function snapMove() {
+    const W = base.width, H = base.height;
+    const pick = (start, size, total) => {
+      let best = start, bd = SNAP_PX / scale;
+      for (const [off, t] of [[0, 0], [size, total], [size / 2, total / 2]]) {
+        const d = Math.abs(start + off - t);
+        if (d <= bd) { bd = d; best = t - off; }
+      }
+      return best;
+    };
+    crop.x = pick(crop.x, crop.w, W);
+    crop.y = pick(crop.y, crop.h, H);
+  }
+  function guides() {
+    const eps = 0.5 / scale, W = base.width, H = base.height;
+    const v = [], h = [];
+    for (const [val, t] of [[crop.x, 0], [crop.x + crop.w, W], [crop.x + crop.w / 2, W / 2]]) if (Math.abs(val - t) <= eps) v.push(t);
+    for (const [val, t] of [[crop.y, 0], [crop.y + crop.h, H], [crop.y + crop.h / 2, H / 2]]) if (Math.abs(val - t) <= eps) h.push(t);
+    return { v, h };
   }
 
   // --- kéo khung
@@ -105,7 +144,11 @@ export function createEditor({ onApply, onCancel }) {
   }
 
   function resizeTo(d, p) {
-    const px = Math.max(0, Math.min(base.width, p.x / scale)), py = Math.max(0, Math.min(base.height, p.y / scale));
+    let px = Math.max(0, Math.min(base.width, p.x / scale)), py = Math.max(0, Math.min(base.height, p.y / scale));
+    if (snapOn()) {
+      px = snapValue(px, [0, base.width, base.width / 2]);
+      py = snapValue(py, [0, base.height, base.height / 2]);
+    }
     const minS = MIN_PX / scale;
     const sx = px >= d.ax ? 1 : -1, sy = py >= d.ay ? 1 : -1;
     let w = Math.abs(px - d.ax), h = Math.abs(py - d.ay);
@@ -138,12 +181,13 @@ export function createEditor({ onApply, onCancel }) {
     if (drag.type === 'move') {
       crop.x = Math.max(0, Math.min(base.width - crop.w, p.x / scale - drag.dx));
       crop.y = Math.max(0, Math.min(base.height - crop.h, p.y / scale - drag.dy));
+      if (snapOn()) snapMove();
     } else {
       resizeTo(drag, p);
     }
     schedule();
   });
-  const end = () => { drag = null; };
+  const end = () => { drag = null; schedule(); };
   stage.addEventListener('pointerup', end);
   stage.addEventListener('pointercancel', end);
 
@@ -183,6 +227,7 @@ export function createEditor({ onApply, onCancel }) {
   function close() { $('imged').hidden = true; bmp?.close?.(); bmp = null; base = null; }
 
   return {
+    getCrop: () => ({ ...crop }),   // test hook
     open(bitmap, fileName) {
       bmp = bitmap; name = fileName; rotation = 0; flip = false;
       $('edaspect').value = 'free'; $('edbright').value = 0; $('edcontrast').value = 0;
