@@ -1,7 +1,7 @@
 // Wordwise: chú giải ngắn (ruby) cho từ khó trong sách tiếng Anh.
 // Cấp 0 = tắt; cấp 1-3 = số lượng từ được chú giải tăng dần, luôn bắt đầu từ bộ từ khó nhất.
 // Dữ liệu data/wordwise-en.tsv do tools/build_wordwise.py sinh ra (tier 1 = khó nhất).
-import { escapeXml } from './util.js';
+import { escapeXml, richPlain, splitBlock } from './util.js';
 
 export const LEVELS = [0, 1, 2, 3];
 
@@ -35,7 +35,7 @@ export function isEnglish(meta, chapters) {
   let words = 0, stop = 0;
   outer: for (const ch of chapters) {
     for (const p of ch.paras) {
-      for (const w of p.toLowerCase().match(/[a-zÀ-ỹ']+/g) || []) {
+      for (const w of richPlain(p).toLowerCase().match(/[a-zÀ-ỹ']+/g) || []) {
         words++;
         if (EN_STOP.has(w)) stop++;
         if (words >= 3000) break outer;
@@ -83,11 +83,12 @@ const WORD_RE = /[A-Za-z]+/g;
 const SENTENCE_START = /(^|[.!?…:]["'“”‘’)\]]*\s+|^["'“‘(\[]+|[“"‘(]\s*)$/;
 
 /**
- * Chú giải một đoạn. Mỗi từ gốc chỉ chú giải lần xuất hiện đầu trong `seen` (thường là một chương).
- * @returns {{html:string, count:number}}
+ * Tìm các từ cần chú giải trong một đoạn văn thuần. Mỗi từ gốc chỉ chú giải lần xuất hiện đầu trong `seen`
+ * (thường là một chương).
+ * @returns {{start:number, end:number, html:string}[]}  toạ độ theo `text`, tăng dần
  */
-export function annotateText(text, dict, maxTier, seen) {
-  let html = '', last = 0, count = 0;
+export function findHits(text, dict, maxTier, seen) {
+  const hits = [];
   WORD_RE.lastIndex = 0;
   let m;
   while ((m = WORD_RE.exec(text))) {
@@ -98,34 +99,33 @@ export function annotateText(text, dict, maxTier, seen) {
     if (/['’]/.test(text[end] || '') && /[A-Za-z]/.test(text[end + 1] || '') && !/^['’]s\b/i.test(text.slice(end, end + 3))) continue;
     if (m.index > 0 && /['’\d]/.test(text[m.index - 1])) continue;
     const first = word[0];
-    const isUpper = first !== first.toLowerCase();
-    if (isUpper) {
+    if (first !== first.toLowerCase()) {
       if (word.length > 1 && word === word.toUpperCase()) continue;
       if (!SENTENCE_START.test(text.slice(0, m.index))) continue; // tên riêng
     }
     const hit = lookup(dict, word.toLowerCase(), maxTier);
     if (!hit || seen.has(hit.key)) continue;
     seen.add(hit.key);
-    html += escapeXml(text.slice(last, m.index)) +
-      `<ruby>${escapeXml(word)}<rp>(</rp><rt>${escapeXml(hit.gloss)}</rt><rp>)</rp></ruby>`;
-    last = end;
-    count++;
+    hits.push({
+      start: m.index, end,
+      html: `<ruby>${escapeXml(word)}<rp>(</rp><rt>${escapeXml(hit.gloss)}</rt><rp>)</rp></ruby>`,
+    });
   }
-  return { html: html + escapeXml(text.slice(last)), count };
+  return hits;
 }
 
 /**
- * Gắn `ch.html` (mảng HTML theo từng đoạn) cho mỗi chương.
+ * Gắn `ch.hits` (mảng theo từng đoạn, xem findHits) cho mỗi chương.
  * @returns {number} tổng số từ được chú giải
  */
 export function applyWordwise(chapters, dict, level) {
   let total = 0;
   for (const ch of chapters) {
     const seen = new Set();
-    ch.html = ch.paras.map(p => {
-      const r = annotateText(p, dict, level, seen);
-      total += r.count;
-      return r.html;
+    ch.hits = ch.paras.map(p => {
+      const hits = findHits(richPlain(splitBlock(p).body), dict, level, seen);
+      total += hits.length;
+      return hits;
     });
   }
   return total;

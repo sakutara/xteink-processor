@@ -1,5 +1,5 @@
 // Lõi chuyển đổi: các tài liệu đã parse + TOC gốc -> danh sách chương {title, paras[]}.
-import { UserError, cleanText, looksLikeChapterTitle, tick } from './util.js';
+import { UserError, cleanText, looksLikeChapterTitle, tick, MK, richPlain, stripPrivate, tidyRich } from './util.js';
 
 const SKIP = new Set([
   'script', 'style', 'link', 'meta', 'title', 'head', 'noscript', 'template', 'iframe',
@@ -22,6 +22,22 @@ const LETTER = /^\p{L}{1,3}$/u;
 const FILE_LETTER = /(?:^|[_\-/])(\p{L})\.(?:jpe?g|png|gif|svg|webp)$/iu;
 const FILE_DROPCAP = /(?:dropcap|drop-cap|drop_cap|initial|first-?letter)[^\p{L}\p{N}]*(\p{L})(?![\p{L}\p{N}])/iu;
 
+const ITALIC_TAGS = new Set(['i', 'em', 'cite', 'dfn', 'var']);
+const BOLD_TAGS = new Set(['b', 'strong']);
+const ITALIC_CLS = /(^|[\s_-])(italic|italics|ital|emphasis)([\s_-]|$)/i;
+const BOLD_CLS = /(^|[\s_-])(bold|strong)([\s_-]|$)/i;
+
+/** Phần tử có in nghiêng / in đậm không (theo tag, style hoặc class). */
+function inlineStyle(el, name) {
+  if (name === 'body' || name === 'html') return { i: false, b: false };
+  const style = el.getAttribute('style') || '';
+  const cls = el.getAttribute('class') || '';
+  return {
+    i: ITALIC_TAGS.has(name) || /font-style\s*:\s*(italic|oblique)/i.test(style) || ITALIC_CLS.test(cls),
+    b: BOLD_TAGS.has(name) || /font-weight\s*:\s*(bold|[6-9]00)/i.test(style) || BOLD_CLS.test(cls),
+  };
+}
+
 function hrefOf(el) {
   return el.getAttribute('src') || el.getAttribute('href')
     || el.getAttribute('xlink:href') || el.getAttributeNS?.('http://www.w3.org/1999/xlink', 'href') || '';
@@ -35,17 +51,52 @@ function flatten(doc, docHref, targets, out) {
   let pendingCap = null; // {letter, block, loose}
   let curBlock = null;
   let flagCls = false;
+  // Markup nội tuyến (i, b) và danh sách (ul/ol/li, phẳng, không lồng)
+  const open = [];      // thứ tự các tag nội tuyến đang mở: 'i' | 'b'
+  const depth = { i: 0, b: 0 };
+  let pendingLi = null; // MK.UL | MK.OL cho đoạn kế tiếp
+  let curLi = null;     // mục li đang mở: {item}
+  let listKind = [];    // ngăn xếp ul/ol đang mở
+
+  const bufPlain = () => richPlain(buf.join(''));
 
   const flush = () => {
     if (headingDepth) return;
-    const text = cleanText(buf.join(''));
-    if (text) {
-      out.push({ t: 'p', text, link: linkChars > 0 && linkChars >= totalChars * 0.9, cls: flagCls });
+    const tail = open.slice().reverse().map(n => (n === 'i' ? MK.I0 : MK.B0)).join('');
+    const rich = tidyRich(cleanText(buf.join('') + tail));
+    const plain = cleanText(richPlain(rich));
+    if (plain) {
+      const link = linkChars > 0 && linkChars >= totalChars * 0.9;
+      if (curLi && curLi.item === out[out.length - 1] && !pendingLi) {
+        // đoạn thứ hai trở đi trong cùng một li: gộp vào mục đó
+        const it = curLi.item;
+        it.rich += ' ' + rich; it.text += ' ' + plain;
+      } else {
+        const item = { t: 'p', text: plain, rich: (pendingLi || '') + rich, link, cls: flagCls };
+        if (pendingLi && curLi) curLi.item = item;
+        out.push(item);
+      }
+      pendingLi = null;
     }
-    buf = []; linkChars = 0; totalChars = 0;
+    buf = open.map(n => (n === 'i' ? MK.I1 : MK.B1));
+    linkChars = 0; totalChars = 0;
+  };
+
+  const openTag = (n) => {
+    if (headingDepth) return;
+    if (depth[n]++ === 0) { open.push(n); buf.push(n === 'i' ? MK.I1 : MK.B1); }
+  };
+  const closeTag = (n) => {
+    if (headingDepth) return;
+    if (--depth[n] === 0) {
+      const k = open.lastIndexOf(n);
+      if (k >= 0) open.splice(k, 1);
+      buf.push(n === 'i' ? MK.I0 : MK.B0);
+    }
   };
 
   const addText = (s) => {
+    s = stripPrivate(s || '');
     if (!s) return;
     if (pendingCap && s.trim()) {
       if (pendingCap.loose || pendingCap.block === curBlock) s = pendingCap.letter + s.replace(/^\s+/, '');
@@ -69,7 +120,7 @@ function flatten(doc, docHref, targets, out) {
     const alt = (el.getAttribute('alt') || el.getAttribute('title') || '').trim();
     const src = hrefOf(el);
     const clsHit = CLASS_DROPCAP.test(classesAround(el)) || CLASS_DROPCAP.test(src);
-    const atStart = !cleanText(buf.join(''));
+    const atStart = !cleanText(bufPlain());
     if (!atStart && !clsHit) return;
     let letter = '';
     if (LETTER.test(alt)) letter = alt;
@@ -119,12 +170,35 @@ function flatten(doc, docHref, targets, out) {
       headingDepth = 1;
       for (const c of el.childNodes) walk(c);
       headingDepth = 0;
-      const text = cleanText(buf.join(''));
-      buf = []; linkChars = 0; totalChars = 0;
+      const text = cleanText(bufPlain());
+      buf = open.map(n => (n === 'i' ? MK.I1 : MK.B1)); linkChars = 0; totalChars = 0;
       if (text) out.push({ t: 'h', level: Number(hm[1]), text });
       return;
     }
 
+    const inl = inlineStyle(el, name);
+    const isList = name === 'ul' || name === 'ol';
+    const isLi = name === 'li' && !headingDepth;
+    if (isLi) {
+      flush();
+      pendingLi = listKind[listKind.length - 1] === 'ol' ? MK.OL : MK.UL;
+    }
+    if (isList) listKind.push(name);
+    const savedLi = curLi;
+    if (isLi) curLi = { item: null };
+    if (inl.i) openTag('i');
+    if (inl.b) openTag('b');
+    try {
+      walkElement(el, name, hm);
+    } finally {
+      if (inl.b) closeTag('b');
+      if (inl.i) closeTag('i');
+      if (isLi) { flush(); curLi = savedLi; pendingLi = null; }
+      if (isList) { listKind.pop(); pendingLi = null; }
+    }
+  };
+
+  const walkElement = (el, name, hm) => {
     const href = el.getAttribute('href') || '';
     const isLink = name === 'a' && (el.hasAttribute('filepos') ||
       (href && (!/^[a-z][a-z0-9+.-]*:/i.test(href) || /^(kindle|filepos):/i.test(href))));
@@ -237,7 +311,7 @@ export async function normalize(book, report) {
         continue;
       }
       first = false;
-      paras.push(it.text);
+      paras.push(it.rich || it.text);
     }
     return paras;
   };

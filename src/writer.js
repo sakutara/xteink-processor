@@ -1,5 +1,5 @@
 // Dựng EPUB 2.0.1 tối giản bằng JSZip.
-import { escapeXml } from './util.js';
+import { escapeXml, splitBlock, richToHtml } from './util.js';
 
 const XHTML_HEAD =
   '<?xml version="1.0" encoding="utf-8"?>\n' +
@@ -14,13 +14,30 @@ function uuid() {
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
 }
 
+/** Các đoạn liền nhau cùng loại danh sách được gộp vào một ul/ol. */
+function chapterBody(c) {
+  const out = [];
+  let list = null;
+  c.paras.forEach((p, k) => {
+    const { kind, body } = splitBlock(p);
+    const html = richToHtml(body, c.hits ? c.hits[k] : []);
+    if (list && list !== kind) { out.push(`</${list}>`); list = null; }
+    if (kind) {
+      if (!list) { out.push(`<${kind}>`); list = kind; }
+      out.push(`<li>${html}</li>`);
+    } else out.push(`<p>${html}</p>`);
+  });
+  if (list) out.push(`</${list}>`);
+  return out.join('\n');
+}
+
 export function chapterFile(i) {
   return `ch${String(i + 1).padStart(3, '0')}.xhtml`;
 }
 
 /**
  * @param {{title:string, author:string[], language:string}} meta
- * @param {{title:string, paras:string[], html?:string[]}[]} chapters  (html: đoạn đã dựng sẵn markup, ví dụ Wordwise)
+ * @param {{title:string, paras:string[], hits?:object[][]}[]} chapters  (paras mang markup i/b/ul/ol, xem util.js; hits: chú giải Wordwise)
  * @param {Uint8Array|null} coverJpeg
  * @returns {Promise<Blob>}
  */
@@ -41,7 +58,7 @@ export async function writeEpub(meta, chapters, coverJpeg) {
 
   chapters.forEach((c, i) => {
     const t = escapeXml(c.title);
-    const body = c.paras.map((p, k) => `<p>${c.html ? c.html[k] : escapeXml(p)}</p>`).join('\n');
+    const body = chapterBody(c);
     zip.file(`OEBPS/text/${chapterFile(i)}`,
       `${XHTML_HEAD}<head><title>${t}</title></head>\n<body><h1>${t}</h1>\n${body}</body></html>\n`, NOF);
   });

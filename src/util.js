@@ -189,3 +189,70 @@ export function looksLikeChapterTitle(text) {
   // "Phần lớn thời gian ..." không phải tiêu đề: câu dài có dấu chấm cuối.
   return !/[.,;]$/.test(t) || t.length <= 40;
 }
+
+// --- Markup nội tuyến trong đoạn văn: ký tự private-use làm dấu hiệu, giữ nguyên là chuỗi để các bước
+// cắt chương/tách đoạn không phải đổi kiểu dữ liệu. Tag được hỗ trợ: i, b (nội tuyến), ul/ol/li (đầu đoạn).
+export const MK = { I1: '', I0: '', B1: '', B0: '', UL: '', OL: '' };
+const MK_ALL = /[-]/g;
+const TAGS = { '': ['i', 1], '': ['i', 0], '': ['b', 1], '': ['b', 0] };
+
+/** Bỏ cặp tag rỗng và khoảng trắng thừa sinh ra quanh chúng. */
+export function tidyRich(s) {
+  let prev;
+  do { prev = s; s = s.replace(/([\uE000\uE002])(\s*)[\uE001\uE003]/g, '$2'); } while (s !== prev);
+  return s.replace(/ {2,}/g, ' ').trim();
+}
+
+/** Đoạn văn không kèm dấu hiệu markup. */
+export const richPlain = s => s.replace(MK_ALL, '');
+/** Bỏ ký tự private-use có sẵn trong nguồn (font icon...) để không bị nhầm với dấu hiệu. */
+export const stripPrivate = s => s.replace(/[-]/g, '');
+
+/** @returns {{kind:'ul'|'ol'|null, body:string}} */
+export function splitBlock(s) {
+  if (s[0] === MK.UL) return { kind: 'ul', body: s.slice(1) };
+  if (s[0] === MK.OL) return { kind: 'ol', body: s.slice(1) };
+  return { kind: null, body: s };
+}
+
+/**
+ * Đoạn (đã bỏ dấu hiệu khối) -> XHTML. `hits` là các khoảng {start,end,html} theo toạ độ của `richPlain`,
+ * thay thế phần chữ tương ứng bằng `html` (dùng cho Wordwise); khoảng nào băng qua dấu hiệu thì bị bỏ.
+ */
+export function richToHtml(body, hits = []) {
+  let prev;
+  do { prev = body; body = body.replace(/([])(\s*)[]/g, '$2'); } while (body !== prev);
+  let out = '', po = 0, hi = 0;
+  const stack = [];
+  const closeTo = (name) => {
+    const k = stack.lastIndexOf(name);
+    if (k < 0) return;
+    const reopen = stack.splice(k).slice(1);
+    for (let j = reopen.length - 1; j >= 0; j--) out += `</${reopen[j]}>`;
+    out += `</${name}>`;
+    for (const n of reopen) { out += `<${n}>`; stack.push(n); }
+  };
+  const run = (text) => {
+    const end = po + text.length;
+    let at = 0;
+    while (hi < hits.length && hits[hi].start < end) {
+      const h = hits[hi++];
+      if (h.start < po || h.end > end) continue;
+      out += escapeXml(text.slice(at, h.start - po)) + h.html;
+      at = h.end - po;
+    }
+    out += escapeXml(text.slice(at));
+    po = end;
+  };
+  let start = 0;
+  for (let i = 0; i <= body.length; i++) {
+    const t = i < body.length ? TAGS[body[i]] : null;
+    if (i < body.length && !t) continue;
+    if (i > start) run(body.slice(start, i));
+    start = i + 1;
+    if (!t) continue;
+    if (t[1]) { stack.push(t[0]); out += `<${t[0]}>`; } else closeTo(t[0]);
+  }
+  for (let j = stack.length - 1; j >= 0; j--) out += `</${stack[j]}>`;
+  return out;
+}
