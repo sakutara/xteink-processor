@@ -13,7 +13,7 @@
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; }
-html { -webkit-text-size-adjust: 100%; touch-action: pan-x pan-y; overscroll-behavior: none; }
+html { -webkit-text-size-adjust: 100%; touch-action: pan-x pan-y; overscroll-behavior-y: auto; }
 body {
   background: var(--bg); color: var(--fg);
   font: clamp(15px, 0.85rem + 0.3vw, 18px)/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
