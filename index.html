@@ -32,6 +32,34 @@
       <p class="stage">Hình bất kỳ → xám, vừa khung 528×792 (giữ tỉ lệ, phần thừa nền trắng), xuất BMP 4 mức xám cho CrossInk (kèm PNG).</p>
       <button type="button" id="imgpick" class="btn">Chọn hình</button>
       <input id="imgfile" type="file" hidden accept="image/*">
+      <div id="imged" class="editor" hidden>
+        <div class="ed-stage"><canvas id="edcanvas" aria-label="Khung cắt hình"></canvas></div>
+        <p class="stage">Kéo bốn góc để cắt, kéo bên trong để di chuyển khung.</p>
+        <div class="ed-row">
+          <button type="button" id="edrotl" class="btn sm">⟲ Xoay trái</button>
+          <button type="button" id="edrotr" class="btn sm">⟳ Xoay phải</button>
+          <button type="button" id="edflip" class="btn sm">⇋ Lật ngang</button>
+        </div>
+        <label class="ed-field">Khung cắt
+          <select id="edaspect">
+            <option value="free">Tự do (giữ nguyên, bù nền trắng)</option>
+            <option value="x3">Vừa màn hình X3 (2:3, không viền trắng)</option>
+          </select>
+        </label>
+        <label class="ed-field">Độ sáng <output id="edbrightv">0</output>
+          <input id="edbright" type="range" min="-100" max="100" value="0">
+        </label>
+        <label class="ed-field">Tương phản <output id="edcontrastv">0</output>
+          <input id="edcontrast" type="range" min="-100" max="100" value="0">
+        </label>
+        <div class="stage">Xem trước trên màn hình X3 (528×792, xám)</div>
+        <canvas id="edresult" class="preview"></canvas>
+        <div class="ed-row">
+          <button type="button" id="edapply" class="btn primary">Xử lý ảnh</button>
+          <button type="button" id="edreset" class="btn">Đặt lại</button>
+          <button type="button" id="edcancel" class="link">Huỷ</button>
+        </div>
+      </div>
       <div id="imgresult" hidden>
         <img id="imgpreview" class="preview" alt="Xem trước hình đã xử lý">
         <div id="imgsummary" class="stage"></div>

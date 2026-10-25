@@ -1,6 +1,7 @@
 import { convert } from './src/convert.js';
 import { UserError } from './src/util.js';
-import { prepareImage } from './src/image.js';
+import { decodeImage } from './src/image.js';
+import { createEditor } from './src/editor.js';
 
 const $ = id => document.getElementById(id);
 const sections = ['drop', 'progress', 'done', 'error'];
@@ -63,37 +64,48 @@ window.addEventListener('drop', e => handleFile(e.dataTransfer?.files?.[0]));
 $('again').addEventListener('click', () => show('drop'));
 $('retry').addEventListener('click', () => show('drop'));
 
-// --- chuẩn bị hình
+// --- chuẩn bị hình: chọn -> chỉnh sửa/cắt -> xử lý
 let imgBusy = false, imgUrls = [];
+function showImageResult(res) {
+  for (const u of imgUrls) URL.revokeObjectURL(u);
+  const bmpUrl = URL.createObjectURL(res.bmp.blob), pngUrl = URL.createObjectURL(res.png.blob);
+  imgUrls = [bmpUrl, pngUrl];
+  $('imgpreview').src = bmpUrl;
+  const a = $('imgdownload');
+  a.href = bmpUrl; a.download = res.bmp.filename;
+  a.textContent = `Tải xuống ${res.bmp.filename}`;
+  const p = $('imgdownloadpng');
+  p.href = pngUrl; p.download = res.png.filename;
+  p.textContent = `Tải PNG xám 8-bit (${res.png.filename})`;
+  $('imgsummary').textContent =
+    `${res.srcWidth}×${res.srcHeight} → ${res.width}×${res.height} · BMP 4-bit 4 mức xám · ${formatSize(res.bmp.blob.size)}`;
+  $('imgresult').hidden = false;
+  $('imgpick').hidden = false;
+}
+function imageError(e) {
+  console.error(e);
+  $('imgresult').hidden = true;
+  $('imgpick').hidden = false;
+  $('imgerror').textContent = e instanceof UserError ? e.message : 'Đã xảy ra lỗi khi xử lý hình.';
+  $('imgerror').hidden = false;
+}
+const editor = createEditor({
+  onApply: res => showImageResult(res),
+  onCancel: e => { if (e) imageError(e); else $('imgpick').hidden = false; },
+});
 async function handleImage(file) {
   if (!file || imgBusy) return;
   imgBusy = true;
   $('imgerror').hidden = true;
-  $('imgpick').disabled = true;
   try {
-    const res = await prepareImage(file, msg => { $('imgpick').textContent = msg; });
-    for (const u of imgUrls) URL.revokeObjectURL(u);
-    const bmpUrl = URL.createObjectURL(res.bmp.blob), pngUrl = URL.createObjectURL(res.png.blob);
-    imgUrls = [bmpUrl, pngUrl];
-    $('imgpreview').src = bmpUrl;
-    const a = $('imgdownload');
-    a.href = bmpUrl; a.download = res.bmp.filename;
-    a.textContent = `Tải xuống ${res.bmp.filename}`;
-    const p = $('imgdownloadpng');
-    p.href = pngUrl; p.download = res.png.filename;
-    p.textContent = `Tải PNG xám 8-bit (${res.png.filename})`;
-    $('imgsummary').textContent =
-      `${res.srcWidth}×${res.srcHeight} → ${res.width}×${res.height} · BMP 4-bit 4 mức xám · ${formatSize(res.bmp.blob.size)}`;
-    $('imgresult').hidden = false;
-  } catch (e) {
-    console.error(e);
+    const bmp = await decodeImage(file);
     $('imgresult').hidden = true;
-    $('imgerror').textContent = e instanceof UserError ? e.message : 'Đã xảy ra lỗi khi xử lý hình.';
-    $('imgerror').hidden = false;
+    $('imgpick').hidden = true;
+    editor.open(bmp, file.name);
+  } catch (e) {
+    imageError(e);
   } finally {
     imgBusy = false;
-    $('imgpick').disabled = false;
-    $('imgpick').textContent = 'Chọn hình';
   }
 }
 $('imgpick').addEventListener('click', () => $('imgfile').click());

@@ -106,25 +106,45 @@ function encodeBmp4(idx, w, h) {
   return new Blob([out], { type: 'image/bmp' });
 }
 
-async function decode(file) {
+export async function decodeImage(file) {
+  if (file.type && !file.type.startsWith('image/')) throw new UserError('Tệp được chọn không phải hình ảnh.');
+  let bmp;
   try {
-    return await createImageBitmap(file, { imageOrientation: 'from-image' });
+    bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
   } catch {
     throw new UserError('Không đọc được hình. Hãy chọn tệp JPG, PNG, WebP, GIF hoặc BMP hợp lệ.');
   }
+  if (!bmp.width || !bmp.height) throw new UserError('Hình không có kích thước hợp lệ.');
+  return bmp;
 }
 
-export async function prepareImage(file, onProgress = () => {}) {
-  if (file.type && !file.type.startsWith('image/')) throw new UserError('Tệp được chọn không phải hình ảnh.');
-  onProgress('Đang đọc hình…', 0.15);
-  const bmp = await decode(file);
-  const { width: sw, height: sh } = bmp;
-  if (!sw || !sh) throw new UserError('Hình không có kích thước hợp lệ.');
+// Xoay (bội của 90°) và lật ngang; trả về canvas mới là ảnh gốc đã biến đổi.
+export function transformImage(bmp, rotation = 0, flip = false) {
+  const turn = ((rotation % 360) + 360) % 360;
+  const swap = turn === 90 || turn === 270;
+  const c = document.createElement('canvas');
+  c.width = swap ? bmp.height : bmp.width;
+  c.height = swap ? bmp.width : bmp.height;
+  const ctx = c.getContext('2d');
+  ctx.translate(c.width / 2, c.height / 2);
+  ctx.rotate(turn * Math.PI / 180);
+  if (flip) ctx.scale(-1, 1);
+  ctx.drawImage(bmp, -bmp.width / 2, -bmp.height / 2);
+  return c;
+}
 
-  onProgress('Đang thu phóng…', 0.4);
+export const DEFAULT_ADJUST = { brightness: 0, contrast: 0 };
+
+// Cắt `crop` (toạ độ pixel của `src`), thu/phóng vừa khung X3 giữ tỉ lệ, nền trắng, chuyển xám,
+// rồi chỉnh sáng/tương phản (chỉ trên vùng ảnh, không đụng phần nền trắng bù thêm).
+export function composeGray(src, crop, adjust = DEFAULT_ADJUST) {
+  const sx = Math.max(0, Math.min(src.width - 1, Math.round(crop.x)));
+  const sy = Math.max(0, Math.min(src.height - 1, Math.round(crop.y)));
+  const sw = Math.max(1, Math.min(src.width - sx, Math.round(crop.w)));
+  const sh = Math.max(1, Math.min(src.height - sy, Math.round(crop.h)));
   const scale = Math.min(X3_WIDTH / sw, X3_HEIGHT / sh);
-  const dw = Math.max(1, Math.round(sw * scale));
-  const dh = Math.max(1, Math.round(sh * scale));
+  const dw = Math.max(1, Math.min(X3_WIDTH, Math.round(sw * scale)));
+  const dh = Math.max(1, Math.min(X3_HEIGHT, Math.round(sh * scale)));
   const dx = Math.floor((X3_WIDTH - dw) / 2);
   const dy = Math.floor((X3_HEIGHT - dh) / 2);
 
@@ -135,24 +155,33 @@ export async function prepareImage(file, onProgress = () => {}) {
   ctx.fillRect(0, 0, X3_WIDTH, X3_HEIGHT);
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
-  ctx.drawImage(bmp, dx, dy, dw, dh);
-  bmp.close?.();
+  ctx.drawImage(src, sx, sy, sw, sh, dx, dy, dw, dh);
 
-  onProgress('Đang chuyển xám…', 0.6);
   const rgba = ctx.getImageData(0, 0, X3_WIDTH, X3_HEIGHT).data;
   const gray = new Uint8Array(X3_WIDTH * X3_HEIGHT);
   for (let i = 0, p = 0; i < gray.length; i++, p += 4) {
     gray[i] = Math.round(0.299 * rgba[p] + 0.587 * rgba[p + 1] + 0.114 * rgba[p + 2]);
   }
 
-  onProgress('Đang dither 4 mức xám…', 0.75);
-  const bmpBlob = encodeBmp4(ditherTo4(gray, X3_WIDTH, X3_HEIGHT), X3_WIDTH, X3_HEIGHT);
-  onProgress('Đang mã hoá PNG…', 0.9);
-  const pngBlob = await encodeGrayPng(gray, X3_WIDTH, X3_HEIGHT);
-  const base = file.name.replace(/\.[^.]+$/, '') || 'image';
+  const b = adjust.brightness * 2.55, c = adjust.contrast * 2.55;
+  if (b || c) {
+    const f = (259 * (c + 255)) / (255 * (259 - c));
+    const lut = new Uint8Array(256);
+    for (let v = 0; v < 256; v++) lut[v] = Math.max(0, Math.min(255, Math.round((v - 128) * f + 128 + b)));
+    for (let y = dy; y < dy + dh; y++) {
+      for (let x = dx; x < dx + dw; x++) gray[y * X3_WIDTH + x] = lut[gray[y * X3_WIDTH + x]];
+    }
+  }
+  return gray;
+}
+
+export async function encodeOutputs(gray, baseName) {
+  const base = baseName.replace(/\.[^.]+$/, '') || 'image';
+  const bmp = encodeBmp4(ditherTo4(gray, X3_WIDTH, X3_HEIGHT), X3_WIDTH, X3_HEIGHT);
+  const png = await encodeGrayPng(gray, X3_WIDTH, X3_HEIGHT);
   return {
-    bmp: { blob: bmpBlob, filename: `${base}-x3.bmp` },
-    png: { blob: pngBlob, filename: `${base}-x3.png` },
-    width: X3_WIDTH, height: X3_HEIGHT, srcWidth: sw, srcHeight: sh,
+    bmp: { blob: bmp, filename: `${base}-x3.bmp` },
+    png: { blob: png, filename: `${base}-x3.png` },
+    width: X3_WIDTH, height: X3_HEIGHT,
   };
 }
