@@ -2,7 +2,7 @@
 <html lang="vi">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Xteink EPUB</title>
   <meta name="description" content="Chuyển ebook sang EPUB tối giản cho máy đọc Xteink X3. Xử lý hoàn toàn trên trình duyệt, dùng được offline.">
   <meta name="theme-color" content="#1f2937">
@@ -18,6 +18,8 @@
       <p class="sub">Chuyển ebook sang EPUB tối giản cho máy đọc Xteink X3</p>
     </header>
 
+    <div class="tools">
+    <div class="tool tool-epub">
     <section id="drop" class="drop" tabindex="0" role="button" aria-label="Chọn hoặc kéo thả tệp ebook">
       <div class="drop-title">Kéo thả ebook vào đây</div>
       <div class="drop-or">hoặc</div>
@@ -27,14 +29,38 @@
       <div class="formats">EPUB · AZW3 · AZW · MOBI · PRC · TXT · HTML · FB2</div>
     </section>
 
+    <section id="progress" class="card" hidden aria-live="polite">
+      <div id="fname" class="fname"></div>
+      <div class="bar"><div id="barfill"></div></div>
+      <div id="stage" class="stage"></div>
+    </section>
+
+    <section id="done" class="card" hidden>
+      <div class="ok">Đã chuyển đổi xong</div>
+      <div id="summary" class="stage"></div>
+      <a id="download" class="btn primary" href="#">Tải xuống</a>
+      <button type="button" id="again" class="link">Chuyển tệp khác</button>
+    </section>
+
+    <section id="error" class="card error" hidden role="alert">
+      <div class="ok">Không chuyển đổi được</div>
+      <div id="errmsg" class="stage"></div>
+      <button type="button" id="retry" class="link">Thử tệp khác</button>
+    </section>
+    </div>
+
+    <div class="tool tool-img">
     <section id="imgprep" class="card imgprep">
       <div class="drop-title">Chuẩn bị hình cho X3</div>
       <p class="stage">Hình bất kỳ → xám, vừa khung 528×792 (giữ tỉ lệ, phần thừa nền trắng), xuất BMP 4 mức xám cho CrossInk (kèm PNG).</p>
       <button type="button" id="imgpick" class="btn">Chọn hình</button>
       <input id="imgfile" type="file" hidden accept="image/*">
       <div id="imged" class="editor" hidden>
-        <div class="ed-stage"><canvas id="edcanvas" aria-label="Khung cắt hình"></canvas></div>
-        <p class="stage">Kéo bốn góc để cắt, kéo bên trong để di chuyển khung.</p>
+        <div class="ed-main">
+          <div class="ed-stage"><canvas id="edcanvas" aria-label="Khung cắt hình"></canvas></div>
+          <p class="stage">Kéo bốn góc để cắt, kéo bên trong để di chuyển khung.</p>
+        </div>
+        <div class="ed-side">
         <div class="ed-row">
           <button type="button" id="edrotl" class="btn sm">⟲ Xoay trái</button>
           <button type="button" id="edrotr" class="btn sm">⟳ Xoay phải</button>
@@ -59,6 +85,7 @@
           <button type="button" id="edreset" class="btn">Đặt lại</button>
           <button type="button" id="edcancel" class="link">Huỷ</button>
         </div>
+        </div>
       </div>
       <div id="imgresult" hidden>
         <img id="imgpreview" class="preview" alt="Xem trước hình đã xử lý">
@@ -68,25 +95,8 @@
       </div>
       <div id="imgerror" class="stage err" role="alert" hidden></div>
     </section>
-
-    <section id="progress" class="card" hidden aria-live="polite">
-      <div id="fname" class="fname"></div>
-      <div class="bar"><div id="barfill"></div></div>
-      <div id="stage" class="stage"></div>
-    </section>
-
-    <section id="done" class="card" hidden>
-      <div class="ok">Đã chuyển đổi xong</div>
-      <div id="summary" class="stage"></div>
-      <a id="download" class="btn primary" href="#">Tải xuống</a>
-      <button type="button" id="again" class="link">Chuyển tệp khác</button>
-    </section>
-
-    <section id="error" class="card error" hidden role="alert">
-      <div class="ok">Không chuyển đổi được</div>
-      <div id="errmsg" class="stage"></div>
-      <button type="button" id="retry" class="link">Thử tệp khác</button>
-    </section>
+    </div>
+    </div>
 
     <footer>
       <span id="offline" class="badge">Đang chuẩn bị offline…</span>

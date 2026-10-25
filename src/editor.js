@@ -2,7 +2,7 @@
 import { X3_WIDTH, X3_HEIGHT, transformImage, composeGray, encodeOutputs } from './image.js';
 
 const $ = id => document.getElementById(id);
-const HANDLE = 16;   // bán kính vùng bắt góc (px màn hình)
+const HANDLE = matchMedia('(pointer: coarse)').matches ? 28 : 16;   // bán kính vùng bắt góc (px màn hình)
 const MIN_PX = 24;   // cạnh nhỏ nhất của khung cắt (px màn hình)
 const ASPECTS = { free: null, x3: X3_WIDTH / X3_HEIGHT };
 
@@ -32,8 +32,8 @@ export function createEditor({ onApply, onCancel }) {
   }
 
   function layout() {
-    const maxW = Math.min(stage.parentElement.clientWidth || 480, 520);
-    const maxH = 420;
+    const maxW = Math.max(120, (stage.parentElement.clientWidth || 480) - 16);
+    const maxH = Math.max(240, Math.min(window.innerHeight * 0.7, 900));
     scale = Math.min(maxW / base.width, maxH / base.height);
     const w = Math.max(1, Math.round(base.width * scale)), h = Math.max(1, Math.round(base.height * scale));
     scale = w / base.width;
