@@ -8,7 +8,7 @@ Chạy hoàn toàn trên trình duyệt, cài được như PWA và dùng đư�
 2. Chờ thanh tiến trình chạy xong.
 3. Bấm "Tải xuống `<title> - <author> - xte.epub` (bỏ phần `<author>` nếu sách không có tác giả)" (title lấy từ metadata, không có thì dùng tên file gốc) rồi chép vào máy đọc.
 
-Đầu ra: mỗi chương một file `.xhtml` chỉ có một `<h1>`, các `<p>` văn bản và vài tag nhẹ: `<i>`, `<b>` (từ `i/em/cite`, `b/strong`, hoặc style/class in nghiêng, in đậm), `<ul>`, `<ol>`, `<li>` (danh sách phẳng, không lồng; nhiều đoạn trong một `li` được gộp lại). Tất cả tag không có attribute; mục lục `toc.ncx`;
+Đầu ra: mỗi chương một file `.xhtml` chỉ có một `<h1>`, các `<p>` văn bản và vài tag nhẹ: `<i>`, `<b>` (từ `i/em/cite`, `b/strong`, hoặc style/class in nghiêng, in đậm), `<blockquote>` (đoạn trích dẫn; nếu hơn 60% chương nằm trong blockquote thì bỏ), `<ul>`, `<ol>`, `<li>` (danh sách phẳng, không lồng; nhiều đoạn trong một `li` được gộp lại). Tất cả tag không có attribute; mục lục `toc.ncx`;
 ảnh bìa (nếu có) thu nhỏ vừa 528×792, xám, JPEG chất lượng 0.4. Không có CSS, ảnh trong nội dung hay liên kết.
 Sách có DRM không chuyển đổi được.
 
