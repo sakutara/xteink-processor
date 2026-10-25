@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-  <title>Xteink EPUB</title>
+  <title>XTEink Manager</title>
   <meta name="description" content="Chuyển ebook sang EPUB tối giản cho máy đọc Xteink X3. Xử lý hoàn toàn trên trình duyệt, dùng được offline.">
   <meta name="theme-color" content="#1f2937">
   <link rel="manifest" href="manifest.webmanifest">
@@ -15,16 +15,65 @@
   <main>
     <header class="top">
       <div class="brand">
-        <h1>Xteink EPUB</h1>
+        <h1>XTEink Manager</h1>
         <p class="sub">Chuyển ebook sang EPUB tối giản cho máy đọc Xteink X3</p>
       </div>
       <nav class="tabs" role="tablist" aria-label="Công cụ">
         <button type="button" role="tab" id="tab-epub" class="tab" aria-controls="panel-epub" aria-selected="true">Chuyển ebook</button>
         <button type="button" role="tab" id="tab-img" class="tab" aria-controls="panel-img" aria-selected="false" tabindex="-1">Hình cho X3</button>
       </nav>
+      <button type="button" id="devopen" class="btn sm">Kết nối XTEink</button>
+      <button type="button" id="devdisc" class="btn sm" hidden>Ngắt kết nối</button>
       <span id="offline" class="badge">Đang chuẩn bị offline…</span>
     </header>
 
+
+    <div id="sendbanner" class="card banner" hidden>
+      <span id="sendbanner-text"></span>
+      <button type="button" id="sendbanner-back" class="link">Quay lại máy Xteink</button>
+    </div>
+
+    <div id="devarea">
+<section id="devconn" class="card dev-conn" hidden>
+        <div class="opts-head"><h2>Kết nối Xteink</h2><button type="button" id="devconnclose" class="link">Đóng</button></div>
+        <p class="hint desc">Bật Wi-Fi truyền tệp (CrossInk) trên máy, cùng mạng với thiết bị này.</p>
+        <div class="dev-row">
+          <input id="devhost" class="dev-input" type="text" inputmode="decimal" autocomplete="off" placeholder="IP máy, ví dụ 192.168.1.50" aria-label="Địa chỉ IP của máy Xteink">
+          <button type="button" id="devconnect" class="btn primary">Kết nối</button>
+          <button type="button" id="devscan" class="btn">Quét mạng</button>
+        </div>
+        <div id="devmsg" class="stage" aria-live="polite"></div>
+        <div id="devhttps" class="hint small" hidden>Trang đang mở qua HTTPS nên trình duyệt chặn gọi tới máy (HTTP). Mở ứng dụng qua HTTP cục bộ (<code>python3 -m http.server 8000</code> rồi vào <code>http://localhost:8000</code>) hoặc cho phép "Nội dung không an toàn" cho trang này trong cài đặt trang web của trình duyệt.</div>
+      </section>
+
+      <section id="devfiles" class="card dev-files" hidden>
+        <div class="opts-head"><h2>Máy Xteink</h2><span id="devstatus" class="tag">Chưa kết nối</span></div>
+        <nav id="devcrumbs" class="crumbs" aria-label="Đường dẫn"></nav>
+        <div class="dev-bar">
+          <button type="button" id="devup" class="btn primary sm">⇪ Upload</button>
+          <button type="button" id="devmkdir" class="btn sm">＋ Thư mục</button>
+          <button type="button" id="devrefresh" class="btn sm">↻ Làm mới</button>
+        </div>
+        <div id="devmove" class="banner" hidden>
+          <span id="devmove-text"></span>
+          <button type="button" id="devpaste" class="btn primary sm">Dán vào đây</button>
+          <button type="button" id="devmovecancel" class="link">Huỷ</button>
+        </div>
+        <div id="devchoose" class="choose" hidden>
+          <p class="stage">Upload vào <b id="devchoose-dir"></b>:</p>
+          <div class="dev-bar">
+            <button type="button" id="choosebook" class="btn primary">📖 Upload sách</button>
+            <button type="button" id="chooseimg" class="btn primary">🖼 Upload ảnh</button>
+            <button type="button" id="choosefile" class="btn">Tệp bất kỳ…</button>
+            <button type="button" id="choosecancel" class="link">Đóng</button>
+          </div>
+          <input id="rawfile" type="file" hidden multiple>
+        </div>
+        <div id="devprog" class="bar" hidden><div id="devprogfill"></div></div>
+        <div id="deverr" class="stage err" role="alert" hidden></div>
+        <ul id="devlist" class="flist"></ul>
+      </section>
+    </div>
 
     <div class="tools">
     <div class="tool tool-epub" id="panel-epub" role="tabpanel" aria-labelledby="tab-epub">
@@ -78,7 +127,9 @@
       <div class="ok">Đã chuyển đổi xong</div>
       <div id="summary" class="chips"></div>
       <a id="download" class="btn primary big" href="#">Tải xuống</a>
-      <p class="hint small">Chép tệp vào máy đọc Xteink X3 qua thẻ nhớ hoặc cáp.</p>
+      <button type="button" id="sendbook" class="btn primary big send" hidden>Gửi vào Xteink</button>
+      <div id="sendbook-msg" class="stage" aria-live="polite"></div>
+      <p class="hint small">Chưa kết nối máy? Tải xuống rồi chép vào máy đọc qua thẻ nhớ hoặc cáp.</p>
       <button type="button" id="again" class="link">Chuyển tệp khác</button>
     </section>
 
@@ -133,10 +184,13 @@
         <div id="imgsummary" class="stage"></div>
         <a id="imgdownload" class="btn primary" href="#">Tải xuống BMP</a>
         <a id="imgdownloadpng" class="link" href="#">Tải PNG xám 8-bit</a>
+        <button type="button" id="sendimg" class="btn primary send" hidden>Gửi BMP vào Xteink</button>
+        <div id="sendimg-msg" class="stage" aria-live="polite"></div>
       </div>
       <div id="imgerror" class="stage err" role="alert" hidden></div>
     </section>
     </div>
+
     </div>
 
     <footer>

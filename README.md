@@ -1,4 +1,4 @@
-# Xteink EPUB
+# XTEink Manager
 
 Webapp thuần client (HTML/CSS/JS, không cần build) chuyển ebook sang EPUB 2.0.1 tối giản cho máy đọc Xteink X3.
 Chạy hoàn toàn trên trình duyệt, cài được như PWA và dùng được khi offline.
@@ -11,6 +11,15 @@ Chạy hoàn toàn trên trình duyệt, cài được như PWA và dùng đư�
 Đầu ra: mỗi chương một file `.xhtml` chỉ có một `<h1>`, các `<p>` văn bản và vài tag nhẹ: `<i>`, `<b>` (từ `i/em/cite`, `b/strong`, hoặc style/class in nghiêng, in đậm), `<blockquote>` (đoạn trích dẫn; nếu hơn 60% chương nằm trong blockquote thì bỏ), `<ul>`, `<ol>`, `<li>` (danh sách phẳng, không lồng; nhiều đoạn trong một `li` được gộp lại). Tất cả tag không có attribute; mục lục `toc.ncx`;
 ảnh bìa (nếu có) thu nhỏ vừa 528×792, xám, JPEG chất lượng 0.4. Không có CSS, ảnh trong nội dung hay liên kết.
 Sách có DRM không chuyển đổi được.
+
+## Kết nối và quản lý file trên Xteink
+App có hai trạng thái. Khi ngắt kết nối, app chạy như bản trước (chuyển ebook, chuẩn bị hình, tải xuống) kèm nút "Kết nối XTEink". Khi đã kết nối, app chỉ hiện trình quản lý file và nút "Ngắt kết nối". Giao tiếp qua web server Wi-Fi của CrossInk/CrossPoint (`/api/status`, `/api/files`, `/upload`, `/mkdir`, `/rename`, `/move`, `/delete`; server bật CORS).
+1. Trên máy bật truyền tệp qua Wi-Fi, để máy và thiết bị này cùng mạng.
+2. Bấm "Kết nối XTEink", rồi "Quét mạng" (thử IP đã lưu, `crosspoint.local`, rồi quét các dải /24 thường gặp) hoặc nhập IP rồi "Kết nối".
+3. Duyệt thư mục, đổi tên, xoá, tạo thư mục; "Di chuyển" (chỉ tệp) rồi mở thư mục đích và bấm "Dán vào đây".
+4. "Upload" hiện lại công cụ sách và ảnh (không có nút tải xuống, chỉ có "Gửi vào Xteink"), hoặc gửi tệp bất kỳ. Gửi xong cửa sổ upload đóng lại và danh sách file được làm mới.
+
+Lưu ý: máy chỉ có HTTP, nên trang phải mở qua HTTP (ví dụ `http://localhost:8000`) hoặc cho phép "Nội dung không an toàn" cho trang HTTPS, nếu không trình duyệt chặn (mixed content).
 
 ## PDF
 Chỉ hỗ trợ PDF có lớp văn bản (pdf.js trích chữ, không OCR). PDF quét ảnh không có chữ, hoặc PDF có mật khẩu, sẽ báo lỗi và không chuyển đổi.

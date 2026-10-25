@@ -1,6 +1,6 @@
 {
-  "name": "Xteink EPUB",
-  "short_name": "Xteink EPUB",
+  "name": "XTEink Manager",
+  "short_name": "XTEink Manager",
   "description": "Chuyển ebook sang EPUB tối giản cho máy đọc Xteink X3, chạy offline.",
   "lang": "vi",
   "start_url": "./",

@@ -1,6 +1,6 @@
 // Service worker: precache toàn bộ asset, cache-first, có version.
 // Đổi VERSION mỗi khi sửa bất kỳ file nào trong danh sách.
-const VERSION = 'v22';
+const VERSION = 'v24';
 const CACHE = `xteink-epub-${VERSION}`;
 const ASSETS = [
   './',
@@ -18,6 +18,7 @@ const ASSETS = [
   'data/wordwise-vi.tsv',
   'src/image.js',
   'src/editor.js',
+  'src/xteink.js',
   'src/readers/epub.js',
   'src/readers/mobi.js',
   'src/readers/fb2.js',

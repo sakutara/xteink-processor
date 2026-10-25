@@ -2,11 +2,13 @@ import { convert } from './src/convert.js';
 import { UserError } from './src/util.js';
 import { decodeImage } from './src/image.js';
 import { createEditor } from './src/editor.js';
+import * as dev from './src/xteink.js';
 
 const $ = id => document.getElementById(id);
 const sections = ['drop', 'progress', 'done', 'error'];
 let busy = false;
 let currentUrl = null;
+let lastBook = null, lastImage = null;
 
 function show(name) {
   for (const s of sections) $(s).hidden = s !== name;
@@ -81,6 +83,9 @@ async function handleFile(file) {
       $('barfill').style.width = `${Math.round(Math.max(0.02, Math.min(1, frac)) * 100)}%`;
     }, { wordwise: +radioValue('wwlevel'), wordwiseLang: wwLang() });
     currentUrl = URL.createObjectURL(res.blob);
+    lastBook = { blob: res.blob, name: res.filename };
+    $('sendbook-msg').textContent = '';
+    syncSend();
     const a = $('download');
     a.href = currentUrl;
     a.download = res.filename;
@@ -120,6 +125,9 @@ function showImageResult(res) {
   for (const u of imgUrls) URL.revokeObjectURL(u);
   const bmpUrl = URL.createObjectURL(res.bmp.blob), pngUrl = URL.createObjectURL(res.png.blob);
   imgUrls = [bmpUrl, pngUrl];
+  lastImage = { blob: res.bmp.blob, name: res.bmp.filename };
+  $('sendimg-msg').textContent = '';
+  syncSend();
   $('imgpreview').src = bmpUrl;
   const a = $('imgdownload');
   a.href = bmpUrl; a.download = res.bmp.filename;
@@ -168,7 +176,8 @@ window.__xteinkConvert = handleFile;
 window.__xteinkConvertRaw = convert;
 
 // --- Tab công cụ
-const TABS = { epub: ['tab-epub', 'panel-epub'], img: ['tab-img', 'panel-img'] };
+const TABS = { epub: ['tab-epub', 'panel-epub'], img: ['tab-img', 'panel-img']};
+const TAB_ORDER = ['epub', 'img'];
 function selectTab(name, focus) {
   if (!TABS[name]) name = 'epub';
   for (const [k, [tabId, panelId]] of Object.entries(TABS)) {
@@ -180,17 +189,19 @@ function selectTab(name, focus) {
     if (on && focus) t.focus();
   }
   store.set('xteink-tab', name);
+  syncSend();
 }
 for (const [k, [tabId]] of Object.entries(TABS)) {
   $(tabId).addEventListener('click', () => selectTab(k));
   $(tabId).addEventListener('keydown', e => {
     if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
       e.preventDefault();
-      selectTab(k === 'epub' ? 'img' : 'epub', true);
+      const i = TAB_ORDER.indexOf(k) + (e.key === 'ArrowRight' ? 1 : -1);
+      selectTab(TAB_ORDER[(i + TAB_ORDER.length) % TAB_ORDER.length], true);
     }
   });
 }
-selectTab(location.hash === '#hinh' ? 'img' : store.get('xteink-tab'));
+
 
 // --- PWA / offline
 const badge = $('offline');
@@ -221,3 +232,276 @@ document.addEventListener('wheel', e => { if (e.ctrlKey) e.preventDefault(); }, 
 document.addEventListener('keydown', e => {
   if ((e.ctrlKey || e.metaKey) && ['+', '-', '=', '0', 'Add', 'Subtract'].includes(e.key)) e.preventDefault();
 });
+
+// --- Máy Xteink: kết nối, quản lý tệp, gửi tệp
+const device = { host: null, cwd: '/', moving: null, uploadMode: false, busy: false };
+
+// Ba trạng thái giao diện: off (ngắt kết nối), on (quản lý file), upload (công cụ sách/ảnh, chỉ có nút gửi)
+function setMode() {
+  const mode = !connected() ? 'off' : device.uploadMode ? 'upload' : 'on';
+  document.body.dataset.mode = mode;
+  $('devopen').hidden = mode !== 'off';
+  $('devdisc').hidden = mode === 'off';
+  $('devfiles').hidden = mode !== 'on';
+  if (mode !== 'off') $('devconn').hidden = true;
+  syncSend();
+}
+const fmtSize = n => (n >= 1048576 ? `${(n / 1048576).toFixed(1)} MB` : n >= 1024 ? `${Math.round(n / 1024)} KB` : `${n} B`);
+const devMsg = (t, err) => { const m = $('devmsg'); m.textContent = t || ''; m.classList.toggle('err', !!err); };
+const devErr = t => { const e = $('deverr'); e.textContent = t || ''; e.hidden = !t; };
+const connected = () => !!device.host;
+
+// Nút "Gửi vào Xteink" + banner thư mục đích ở tab sách/ảnh
+function syncSend() {
+  const on = connected();
+  $('sendbook').hidden = !(on && lastBook);
+  $('sendimg').hidden = !(on && lastImage);
+  if (on) {
+    $('sendbook').textContent = `Gửi vào Xteink (${device.cwd})`;
+    $('sendimg').textContent = `Gửi BMP vào Xteink (${device.cwd})`;
+  }
+  const banner = $('sendbanner');
+  banner.hidden = !(on && device.uploadMode);
+  if (!banner.hidden) $('sendbanner-text').textContent = `Xong sẽ gửi thẳng vào thư mục ${device.cwd} trên Xteink.`;
+}
+
+// Đóng cửa sổ upload, quay về quản lý file và làm mới danh sách
+function leaveUpload() {
+  device.uploadMode = false;
+  lastBook = lastImage = null;
+  if (currentUrl) { URL.revokeObjectURL(currentUrl); currentUrl = null; }
+  $('sendbook-msg').textContent = '';
+  $('sendimg-msg').textContent = '';
+  show('drop');
+  $('imgresult').hidden = true;
+  $('imgpick').hidden = false;
+  setMode();
+  refresh();
+}
+
+// Gửi một Blob vào thư mục hiện hành; hỏi trước khi ghi đè tệp trùng tên.
+async function sendToDevice(blob, name, msgEl, progEl) {
+  const host = device.host, dir = device.cwd;
+  const set = t => { msgEl.textContent = t; msgEl.classList.remove('err'); };
+  const fail = t => { msgEl.textContent = t; msgEl.classList.add('err'); };
+  try {
+    const existing = await dev.list(host, dir);
+    if (existing.some(f => f.name === name && !f.isDirectory)) {
+      if (!confirm(`"${name}" đã có trong ${dir}. Ghi đè?`)) { set('Đã huỷ.'); return false; }
+      await dev.remove(host, dev.joinPath(dir, name));
+    }
+    set('Đang gửi 0%…');
+    await dev.upload(host, dir, blob, name, f => {
+      const pct = Math.round(f * 100);
+      set(`Đang gửi ${pct}%…`);
+      if (progEl) { progEl.hidden = false; $('devprogfill').style.width = `${pct}%`; }
+    });
+    set(`Đã gửi ${name} vào ${dir}.`);
+    return true;
+  } catch (e) {
+    fail(e instanceof dev.DeviceError ? e.message : 'Gửi tệp thất bại.');
+    return false;
+  } finally {
+    if (progEl) progEl.hidden = true;
+  }
+}
+$('sendbook').addEventListener('click', async () => {
+  if (!lastBook) return;
+  $('sendbook').disabled = true;
+  const ok = await sendToDevice(lastBook.blob, lastBook.name, $('sendbook-msg'));
+  $('sendbook').disabled = false;
+  if (ok) leaveUpload();
+});
+$('sendimg').addEventListener('click', async () => {
+  if (!lastImage) return;
+  $('sendimg').disabled = true;
+  const ok = await sendToDevice(lastImage.blob, lastImage.name, $('sendimg-msg'));
+  $('sendimg').disabled = false;
+  if (ok) leaveUpload();
+});
+$('sendbanner-back').addEventListener('click', leaveUpload);
+
+function setConnected(host, info) {
+  device.host = host;
+  device.cwd = '/';
+  device.moving = null;
+  if (host) dev.saveHost(host);
+  $('devhost').value = host || $('devhost').value;
+  device.uploadMode = false;
+  const st = $('devstatus');
+  st.textContent = host ? `Đã kết nối${info?.device ? ' · ' + info.device : ''} · ${host}` : 'Chưa kết nối';
+  st.classList.toggle('on', !!host);
+  setMode();
+  if (host) refresh();
+}
+
+async function connectTo(host) {
+  host = host.trim().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+  if (!host) { devMsg('Nhập IP của máy, hoặc bấm Quét mạng.', true); return; }
+  devMsg(`Đang kết nối ${host}…`);
+  const info = await dev.probe(host, 4000);
+  if (info) { devMsg(''); setConnected(host, info); return; }
+  devMsg(`Không thấy máy Xteink tại ${host}. Kiểm tra máy đã bật Wi-Fi truyền tệp và cùng mạng.`, true);
+  $('devhttps').hidden = !dev.isSecurePage();
+}
+let scanCtl = null;
+async function scanNetwork() {
+  if (scanCtl) { scanCtl.abort(); return; }
+  scanCtl = new AbortController();
+  const btn = $('devscan');
+  btn.textContent = 'Dừng quét';
+  $('devhttps').hidden = !dev.isSecurePage();
+  const prefix = (/^\d+\.\d+\.\d+/.exec($('devhost').value) || [])[0];
+  let found = null;
+  try {
+    found = await dev.scan({ prefix, signal: scanCtl.signal, onProgress: (m, f) => devMsg(`${m} ${f ? Math.round(f * 100) + '%' : ''}`) });
+  } finally {
+    scanCtl = null;
+    btn.textContent = 'Quét mạng';
+  }
+  if (found) { devMsg(''); setConnected(found.host, found.info); }
+  else devMsg('Không tìm thấy máy Xteink. Nhập IP thủ công (xem trên màn hình máy khi bật truyền tệp).', true);
+}
+$('devconnect').addEventListener('click', () => connectTo($('devhost').value));
+$('devhost').addEventListener('keydown', e => { if (e.key === 'Enter') connectTo($('devhost').value); });
+$('devscan').addEventListener('click', scanNetwork);
+$('devdisc').addEventListener('click', () => { setConnected(null); devMsg(''); });
+$('devopen').addEventListener('click', () => { $('devconn').hidden = !$('devconn').hidden; if (!$('devconn').hidden) $('devhost').focus(); });
+$('devconnclose').addEventListener('click', () => { $('devconn').hidden = true; });
+
+function renderCrumbs() {
+  const nav = $('devcrumbs');
+  nav.textContent = '';
+  const add = (label, path) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.textContent = label;
+    b.addEventListener('click', () => { device.cwd = path; refresh(); });
+    nav.append(b);
+  };
+  add('Xteink', '/');
+  let acc = '';
+  for (const part of device.cwd.split('/').filter(Boolean)) {
+    const sep = document.createElement('span');
+    sep.className = 'sep'; sep.textContent = '/';
+    nav.append(sep);
+    acc += '/' + part;
+    add(part, acc);
+  }
+}
+
+async function refresh() {
+  if (!connected()) return;
+  renderCrumbs();
+  devErr('');
+  $('devchoose-dir').textContent = device.cwd;
+  $('devmove').hidden = !device.moving;
+  if (device.moving) $('devmove-text').textContent = `Đang di chuyển "${device.moving.name}" — mở thư mục đích rồi bấm Dán vào đây.`;
+  syncSend();
+  const ul = $('devlist');
+  ul.textContent = '';
+  const loading = document.createElement('li');
+  loading.className = 'empty'; loading.textContent = 'Đang tải…';
+  ul.append(loading);
+  let items;
+  try {
+    items = await dev.list(device.host, device.cwd);
+  } catch (e) {
+    ul.textContent = '';
+    devErr(e.message);
+    return;
+  }
+  ul.textContent = '';
+  if (!items.length) {
+    const li = document.createElement('li');
+    li.className = 'empty'; li.textContent = 'Thư mục trống';
+    ul.append(li);
+  }
+  for (const it of items) {
+    const path = dev.joinPath(device.cwd, it.name);
+    const li = document.createElement('li');
+    const name = document.createElement('button');
+    name.type = 'button';
+    name.className = 'fname-btn' + (it.isDirectory ? ' dir' : '');
+    name.textContent = (it.isDirectory ? '📁 ' : '') + it.name;
+    if (it.isDirectory) name.addEventListener('click', () => { device.cwd = path; refresh(); });
+    li.append(name);
+    if (!it.isDirectory) {
+      const sz = document.createElement('span');
+      sz.className = 'fsize'; sz.textContent = fmtSize(it.size);
+      li.append(sz);
+    }
+    const acts = document.createElement('div');
+    acts.className = 'acts';
+    const act = (label, cls, fn) => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.textContent = label; if (cls) b.className = cls;
+      b.addEventListener('click', fn);
+      acts.append(b);
+    };
+    act('Đổi tên', '', () => doOp(() => {
+      const n = prompt('Tên mới:', it.name);
+      return n && n !== it.name ? dev.rename(device.host, path, n) : null;
+    }));
+    if (!it.isDirectory) act('Di chuyển', '', () => { device.moving = { path, name: it.name }; refresh(); });
+    act('Xoá', 'del', () => doOp(() => (confirm(`Xoá ${it.isDirectory ? 'thư mục' : 'tệp'} "${it.name}"?${it.isDirectory ? ' Mọi thứ bên trong sẽ mất.' : ''}`) ? dev.remove(device.host, path) : null)));
+    li.append(acts);
+    ul.append(li);
+  }
+}
+
+async function doOp(fn) {
+  devErr('');
+  try {
+    const p = fn();
+    if (!p) return;
+    await p;
+  } catch (e) {
+    devErr(e instanceof dev.DeviceError ? e.message : 'Thao tác thất bại.');
+  }
+  refresh();
+}
+$('devrefresh').addEventListener('click', refresh);
+$('devmkdir').addEventListener('click', () => doOp(() => {
+  const n = prompt('Tên thư mục mới:');
+  return n ? dev.mkdir(device.host, device.cwd, n) : null;
+}));
+$('devpaste').addEventListener('click', () => doOp(() => {
+  const m = device.moving;
+  device.moving = null;
+  return dev.move(device.host, m.path, device.cwd);
+}));
+$('devmovecancel').addEventListener('click', () => { device.moving = null; refresh(); });
+
+// Upload: chọn sách / ảnh / tệp bất kỳ
+$('devup').addEventListener('click', () => { $('devchoose').hidden = !$('devchoose').hidden; });
+$('choosecancel').addEventListener('click', () => { $('devchoose').hidden = true; });
+function goUpload(tab) {
+  device.uploadMode = true;
+  $('devchoose').hidden = true;
+  setMode();
+  selectTab(tab);
+}
+$('choosebook').addEventListener('click', () => goUpload('epub'));
+$('chooseimg').addEventListener('click', () => goUpload('img'));
+$('choosefile').addEventListener('click', () => $('rawfile').click());
+$('rawfile').addEventListener('change', async () => {
+  const files = [...$('rawfile').files];
+  $('rawfile').value = '';
+  $('devchoose').hidden = true;
+  for (const f of files) {
+    const ok = await sendToDevice(f, f.name, $('devmsg'), $('devprog'));
+    if (!ok) break;
+  }
+  refresh();
+});
+
+function initDevice() {
+  const saved = dev.savedHost();
+  if (saved) $('devhost').value = saved;
+  if (dev.isSecurePage()) $('devhttps').hidden = false;
+  setMode();
+  if (saved && !dev.isSecurePage()) dev.probe(saved, 2500).then(info => { if (info && !connected()) setConnected(saved, info); });
+}
+
+selectTab(location.hash === '#hinh' ? 'img' : store.get('xteink-tab'));
+initDevice();
