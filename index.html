@@ -13,31 +13,54 @@
 </head>
 <body>
   <main>
-    <header>
-      <h1>Xteink EPUB</h1>
-      <p class="sub">Chuyển ebook sang EPUB tối giản cho máy đọc Xteink X3</p>
+    <header class="top">
+      <div class="brand">
+        <h1>Xteink EPUB</h1>
+        <p class="sub">Chuyển ebook sang EPUB tối giản cho máy đọc Xteink X3</p>
+      </div>
+      <span id="offline" class="badge">Đang chuẩn bị offline…</span>
     </header>
 
+    <nav class="tabs" role="tablist" aria-label="Công cụ">
+      <button type="button" role="tab" id="tab-epub" class="tab" aria-controls="panel-epub" aria-selected="true">Chuyển ebook</button>
+      <button type="button" role="tab" id="tab-img" class="tab" aria-controls="panel-img" aria-selected="false" tabindex="-1">Hình cho X3</button>
+    </nav>
+
     <div class="tools">
-    <div class="tool tool-epub">
-    <label class="ed-field ww">Wordwise (sách tiếng Anh)
-      <select id="wordwise">
-        <option value="0" selected>Cấp 0 — Tắt</option>
-        <option value="1">Cấp 1 — Ít từ (chỉ từ khó nhất)</option>
-        <option value="2">Cấp 2 — Vừa</option>
-        <option value="3">Cấp 3 — Nhiều từ (cả từ dễ hơn)</option>
-      </select>
-    </label>
-    <label class="ed-field ww">Ngôn ngữ chú giải
-      <select id="wordwiselang">
-        <option value="en" selected>Tiếng Anh</option>
-        <option value="vi">Tiếng Việt</option>
-      </select>
-    </label>
+    <div class="tool tool-epub" id="panel-epub" role="tabpanel" aria-labelledby="tab-epub">
+
+    <section class="card opts" aria-labelledby="ww-title">
+      <div class="opts-head">
+        <h2 id="ww-title">Wordwise</h2>
+        <span class="tag">Sách tiếng Anh</span>
+      </div>
+      <p class="hint">Thêm nghĩa ngắn ngay cạnh từ khó, ưu tiên từ khó nhất trước.</p>
+
+      <fieldset class="field">
+        <legend>Số lượng từ</legend>
+        <div class="seg seg4" role="radiogroup" aria-label="Số lượng từ được chú giải">
+          <label><input type="radio" name="wwlevel" value="0" checked><span>Tắt</span></label>
+          <label><input type="radio" name="wwlevel" value="1"><span>Ít</span></label>
+          <label><input type="radio" name="wwlevel" value="2"><span>Vừa</span></label>
+          <label><input type="radio" name="wwlevel" value="3"><span>Nhiều</span></label>
+        </div>
+        <p id="wwhint" class="hint small" aria-live="polite"></p>
+      </fieldset>
+
+      <fieldset class="field" id="wwlangfield">
+        <legend>Chú giải bằng</legend>
+        <div class="seg seg2 switch" role="radiogroup" aria-label="Ngôn ngữ chú giải">
+          <label><input type="radio" name="wwlang" value="en" checked><span>English</span></label>
+          <label><input type="radio" name="wwlang" value="vi"><span>Tiếng Việt</span></label>
+        </div>
+      </fieldset>
+    </section>
+
     <section id="drop" class="drop" tabindex="0" role="button" aria-label="Chọn hoặc kéo thả tệp ebook">
+      <svg class="drop-icon" viewBox="0 0 24 24" width="40" height="40" aria-hidden="true"><path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
       <div class="drop-title">Kéo thả ebook vào đây</div>
       <div class="drop-or">hoặc</div>
-      <button type="button" id="pick" class="btn">Chọn tệp</button>
+      <button type="button" id="pick" class="btn primary">Chọn tệp</button>
       <input id="file" type="file" hidden
         accept=".epub,.azw3,.azw,.mobi,.prc,.txt,.html,.htm,.xhtml,.fb2,.pdf">
       <div class="formats">EPUB · AZW3 · AZW · MOBI · PRC · TXT · HTML · FB2 · PDF (có văn bản)</div>
@@ -51,20 +74,21 @@
 
     <section id="done" class="card" hidden>
       <div class="ok">Đã chuyển đổi xong</div>
-      <div id="summary" class="stage"></div>
-      <a id="download" class="btn primary" href="#">Tải xuống</a>
+      <div id="summary" class="chips"></div>
+      <a id="download" class="btn primary big" href="#">Tải xuống</a>
+      <p class="hint small">Chép tệp vào máy đọc Xteink X3 qua thẻ nhớ hoặc cáp.</p>
       <button type="button" id="again" class="link">Chuyển tệp khác</button>
     </section>
 
     <section id="error" class="card error" hidden role="alert">
       <div class="ok">Không chuyển đổi được</div>
       <div id="errmsg" class="stage"></div>
-      <button type="button" id="retry" class="link">Thử tệp khác</button>
+      <button type="button" id="retry" class="btn">Thử tệp khác</button>
     </section>
     </div>
 
-    <div class="tool tool-img">
-    <section id="imgprep" class="card imgprep">
+    <div class="tool tool-img" id="panel-img" role="tabpanel" aria-labelledby="tab-img" hidden>
+<section id="imgprep" class="card imgprep">
       <div class="drop-title">Chuẩn bị hình cho X3</div>
       <p class="stage">Hình bất kỳ → xám, vừa khung 528×792 (giữ tỉ lệ, phần thừa nền trắng), xuất BMP 4 mức xám cho CrossInk (kèm PNG).</p>
       <button type="button" id="imgpick" class="btn">Chọn hình</button>
@@ -114,7 +138,6 @@
     </div>
 
     <footer>
-      <span id="offline" class="badge">Đang chuẩn bị offline…</span>
       <p>Mọi thao tác chạy ngay trên máy của bạn, tệp không được tải lên đâu cả.</p>
     </footer>
   </main>

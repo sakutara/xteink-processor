@@ -19,7 +19,7 @@ dòng bắt đầu bằng gạch đầu dòng thành `<li>`. Chương lấy từ
 Bố cục nhiều cột, bảng, công thức và chữ dọc không được dựng lại; ảnh bị bỏ như các định dạng khác.
 
 ## Wordwise (sách tiếng Anh)
-Chọn cấp Wordwise 0–3 và ngôn ngữ chú giải (tiếng Anh hoặc tiếng Việt) trước khi thả tệp. Từ luôn là tiếng Anh. Cấp 0 là tắt; cấp 1 chỉ chú giải bộ từ khó nhất, cấp 2 thêm bộ từ ít khó hơn,
+Chọn số lượng từ (Tắt, Ít, Vừa, Nhiều = cấp 0–3) và gạt công tắc ngôn ngữ chú giải (English hoặc Tiếng Việt) trước khi thả tệp. Từ luôn là tiếng Anh. Cấp 0 là tắt; cấp 1 chỉ chú giải bộ từ khó nhất, cấp 2 thêm bộ từ ít khó hơn,
 cấp 3 thêm cả bộ từ dễ hơn nữa (luôn ưu tiên từ khó trước). Mỗi từ chỉ được chú giải ở lần xuất hiện đầu tiên trong mỗi chương;
 tên riêng và từ viết hoa toàn bộ bị bỏ qua. Sách không phải tiếng Anh (theo metadata hoặc đoán theo nội dung) thì bỏ qua.
 

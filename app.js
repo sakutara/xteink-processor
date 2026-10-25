@@ -16,13 +16,50 @@ function formatSize(n) {
   return n > 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`;
 }
 
-const WW_KEY = 'xteink-wordwise';
-const WW_LANG_KEY = 'xteink-wordwise-lang';
-const wwSel = $('wordwise');
-const wwLangSel = $('wordwiselang');
-for (const [sel, key] of [[wwSel, WW_KEY], [wwLangSel, WW_LANG_KEY]]) {
-  try { const v = localStorage.getItem(key); if (v && sel.querySelector(`option[value="${v}"]`)) sel.value = v; } catch { /* bỏ qua */ }
-  sel.addEventListener('change', () => { try { localStorage.setItem(key, sel.value); } catch { /* bỏ qua */ } });
+// --- Tuỳ chọn (nhớ lại giữa các lần mở)
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch { /* bỏ qua */ } },
+};
+const radios = name => [...document.querySelectorAll(`input[name="${name}"]`)];
+const radioValue = name => (radios(name).find(r => r.checked) || {}).value;
+function setRadio(name, value) {
+  const r = radios(name).find(x => x.value === value);
+  if (r) r.checked = true;
+}
+const WW_HINTS = {
+  0: 'Tắt: không thêm chú giải.',
+  1: 'Ít: chỉ chú giải bộ từ khó nhất.',
+  2: 'Vừa: thêm các từ ít khó hơn.',
+  3: 'Nhiều: thêm cả từ dễ hơn nữa. Mỗi từ chỉ chú giải ở lần xuất hiện đầu trong mỗi chương.',
+};
+function syncWordwise() {
+  const level = radioValue('wwlevel') || '0';
+  $('wwhint').textContent = WW_HINTS[level];
+  $('wwlangfield').disabled = level === '0';
+}
+for (const [name, key] of [['wwlevel', 'xteink-wordwise'], ['wwlang', 'xteink-wordwise-lang']]) {
+  const saved = store.get(key);
+  if (saved) setRadio(name, saved);
+  for (const r of radios(name)) r.addEventListener('change', () => { store.set(key, radioValue(name)); syncWordwise(); });
+}
+syncWordwise();
+
+function renderSummary(res) {
+  const box = $('summary');
+  box.textContent = '';
+  const chip = (text, warn) => {
+    const c = document.createElement('span');
+    c.className = warn ? 'chip warn' : 'chip';
+    c.textContent = text;
+    box.append(c);
+  };
+  chip(`${res.chapters} chương`);
+  chip(formatSize(res.blob.size));
+  if (res.hasCover) chip('Có ảnh bìa');
+  const w = res.wordwise;
+  if (w.level) chip(`Wordwise ${w.level}/3 · ${w.lang === 'vi' ? 'Tiếng Việt' : 'English'} · ${w.words} từ`);
+  if (w.skipped) chip(w.skipped, true);
 }
 
 async function handleFile(file) {
@@ -37,16 +74,13 @@ async function handleFile(file) {
     const res = await convert(file, (msg, frac) => {
       $('stage').textContent = msg;
       $('barfill').style.width = `${Math.round(Math.max(0.02, Math.min(1, frac)) * 100)}%`;
-    }, { wordwise: +wwSel.value, wordwiseLang: wwLangSel.value });
+    }, { wordwise: +radioValue('wwlevel'), wordwiseLang: radioValue('wwlang') });
     currentUrl = URL.createObjectURL(res.blob);
     const a = $('download');
     a.href = currentUrl;
     a.download = res.filename;
     a.textContent = `Tải xuống ${res.filename}`;
-    $('summary').textContent =
-      `${res.chapters} chương · ${formatSize(res.blob.size)}${res.hasCover ? ' · có ảnh bìa' : ''}`
-      + (res.wordwise.level ? ` · Wordwise cấp ${res.wordwise.level} (${res.wordwise.lang === 'vi' ? 'tiếng Việt' : 'tiếng Anh'}): ${res.wordwise.words} từ` : '')
-      + (res.wordwise.skipped ? ` · ${res.wordwise.skipped}` : '');
+    renderSummary(res);
     show('done');
   } catch (e) {
     console.error(e);
@@ -127,6 +161,31 @@ window.__xteinkEditor = editor;
 // Test hook: cho phép nạp tệp bằng script.
 window.__xteinkConvert = handleFile;
 window.__xteinkConvertRaw = convert;
+
+// --- Tab công cụ
+const TABS = { epub: ['tab-epub', 'panel-epub'], img: ['tab-img', 'panel-img'] };
+function selectTab(name, focus) {
+  if (!TABS[name]) name = 'epub';
+  for (const [k, [tabId, panelId]] of Object.entries(TABS)) {
+    const on = k === name;
+    const t = $(tabId);
+    t.setAttribute('aria-selected', on ? 'true' : 'false');
+    t.tabIndex = on ? 0 : -1;
+    $(panelId).hidden = !on;
+    if (on && focus) t.focus();
+  }
+  store.set('xteink-tab', name);
+}
+for (const [k, [tabId]] of Object.entries(TABS)) {
+  $(tabId).addEventListener('click', () => selectTab(k));
+  $(tabId).addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+      e.preventDefault();
+      selectTab(k === 'epub' ? 'img' : 'epub', true);
+    }
+  });
+}
+selectTab(location.hash === '#hinh' ? 'img' : store.get('xteink-tab'));
 
 // --- PWA / offline
 const badge = $('offline');
