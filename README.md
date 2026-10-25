@@ -24,12 +24,12 @@ cấp 3 thêm cả bộ từ dễ hơn nữa (luôn ưu tiên từ khó trước
 tên riêng và từ viết hoa toàn bộ bị bỏ qua. Sách không phải tiếng Anh (theo metadata hoặc đoán theo nội dung) thì bỏ qua.
 
 Chú giải được ghi dạng `<ruby>từ<rp>(</rp><rt>nghĩa</rt><rp>)</rp></ruby>`: máy đọc hỗ trợ ruby sẽ hiện nghĩa phía trên từ,
-máy không hỗ trợ sẽ hiện `từ(nghĩa)`. Từ điển `data/wordwise-en.tsv` (WordNet + wordfreq) sinh bằng
-`python3 tools/build_wordwise.py` (cần `pip install wordfreq nltk` và dữ liệu WordNet). Nghĩa lấy theo nghĩa phổ biến nhất nên có thể không khớp ngữ cảnh.
+máy không hỗ trợ sẽ hiện `từ(nghĩa)`. Từ điển `data/wordwise-en.tsv` (khoảng 12.500 từ, tier 1 = khó nhất) được viết tay: mỗi từ có một chú giải tiếng Anh ngắn, theo nghĩa thông dụng nhất,
+từ nào có hai nghĩa phổ biến thì ghi cả hai, cách nhau bằng dấu `;`. Không lấy nguyên văn từ WordNet nên không bị cắt cụt hay lủng củng.
+Nghĩa có thể không khớp ngữ cảnh với từ nhiều nghĩa.
 
-Chú giải tiếng Việt lấy từ `data/wordwise-vi.tsv`, sinh bằng `tools/build_wordwise_vi.py` từ `av.txt` của gói npm `tratu-core`
-(từ điển Anh–Việt). Chỉ có khoảng 20.000 trong 24.000 từ có nghĩa; từ thiếu sẽ không được chú giải. Nghĩa được rút tự động
-nên có lỗi (ví dụ dịch sai hoặc cụt), chưa được soát tay.
+Chú giải tiếng Việt nằm ở `data/wordwise-vi.tsv` (cùng bộ từ, cùng định dạng và cùng cấp độ khó), viết bám sát từng chú giải tiếng Anh tương ứng.
+Hai bản có cùng bộ từ (đã bỏ các từ quá hiếm, tên riêng và từ tục); từ không có trong bảng sẽ không được chú giải. Nghĩa vẫn là nghĩa phổ biến nhất nên có thể chưa khớp với ngữ cảnh của từng câu.
 
 ## Chuẩn bị hình cho X3
 Mục "Chuẩn bị hình cho X3" nhận hình bất kỳ (JPG, PNG, WebP, GIF, BMP...), chuyển xám, thu/phóng vừa khung 528×792
