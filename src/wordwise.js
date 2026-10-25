@@ -1,6 +1,6 @@
 // Wordwise: chú giải ngắn (ruby) cho từ khó trong sách tiếng Anh.
 // Cấp 0 = tắt; cấp 1-3 = số lượng từ được chú giải tăng dần, luôn bắt đầu từ bộ từ khó nhất.
-// Dữ liệu data/wordwise-en.tsv do tools/build_wordwise.py sinh ra (tier 1 = khó nhất).
+// Dữ liệu data/wordwise-en.tsv và -vi.tsv viết tay (tier 1 = khó nhất).
 import { escapeXml, richPlain, splitBlock } from './util.js';
 
 export const LEVELS = [0, 1, 2, 3];
