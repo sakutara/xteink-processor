@@ -7,8 +7,6 @@ import * as dev from './src/xteink.js';
 const $ = id => document.getElementById(id);
 const sections = ['drop', 'progress', 'done', 'error'];
 let busy = false;
-let currentUrl = null;
-let lastBook = null, lastImage = null;
 
 function show(name) {
   for (const s of sections) $(s).hidden = s !== name;
@@ -52,9 +50,9 @@ function syncWordwise() {
 }
 syncWordwise();
 
-function renderSummary(res) {
-  const box = $('summary');
-  box.textContent = '';
+function chipsFor(res) {
+  const box = document.createElement('div');
+  box.className = 'chips';
   const chip = (text, warn) => {
     const c = document.createElement('span');
     c.className = warn ? 'chip warn' : 'chip';
@@ -67,37 +65,85 @@ function renderSummary(res) {
   const w = res.wordwise;
   if (w.level) chip(`Wordwise ${w.level}/3 · ${w.lang === 'vi' ? 'Tiếng Việt' : 'English'} · ${w.words} từ`);
   if (w.skipped) chip(w.skipped, true);
+  return box;
 }
 
-async function handleFile(file) {
-  if (!file || busy) return;
+// Tải nhiều tệp: kích hoạt lần lượt từng liên kết (trình duyệt có thể hỏi cho phép tải nhiều tệp)
+async function downloadAll(items) {
+  for (const it of items) {
+    const a = document.createElement('a');
+    a.href = it.url; a.download = it.name;
+    document.body.append(a);
+    a.click();
+    a.remove();
+    await new Promise(r => setTimeout(r, 400));
+  }
+}
+
+function renderBooks() {
+  const ul = $('booklist');
+  ul.textContent = '';
+  for (const b of books) {
+    const li = document.createElement('li');
+    const n = document.createElement('div');
+    n.className = 'rname'; n.textContent = b.name;
+    li.append(n);
+    if (b.error) {
+      const er = document.createElement('div');
+      er.className = 'stage err'; er.textContent = `${b.src}: ${b.error}`;
+      li.append(er);
+    } else {
+      li.append(chipsFor(b.res));
+      const a = document.createElement('a');
+      a.className = 'link'; a.href = b.url; a.download = b.name; a.textContent = 'Tải tệp này';
+      li.append(a);
+    }
+    ul.append(li);
+  }
+  const ok = books.filter(b => !b.error);
+  $('download').textContent = ok.length > 1 ? `Tải xuống tất cả (${ok.length} tệp)` : `Tải xuống ${ok[0]?.name || ''}`;
+  $('sendbook').hidden = !ok.length;
+  $('download').hidden = !ok.length;
+}
+
+let books = [];
+const okBooks = () => books.filter(b => !b.error);
+
+async function handleFiles(files) {
+  files = [...(files || [])];
+  if (!files.length || busy) return;
   busy = true;
-  if (currentUrl) { URL.revokeObjectURL(currentUrl); currentUrl = null; }
-  $('fname').textContent = file.name;
-  $('barfill').style.width = '2%';
-  $('stage').textContent = 'Đang bắt đầu…';
+  for (const b of books) if (b.url) URL.revokeObjectURL(b.url);
+  books = [];
   show('progress');
   try {
-    const res = await convert(file, (msg, frac) => {
-      $('stage').textContent = msg;
-      $('barfill').style.width = `${Math.round(Math.max(0.02, Math.min(1, frac)) * 100)}%`;
-    }, { wordwise: +radioValue('wwlevel'), wordwiseLang: wwLang() });
-    currentUrl = URL.createObjectURL(res.blob);
-    lastBook = { blob: res.blob, name: res.filename };
-    $('sendbook-msg').textContent = '';
-    syncSend();
-    const a = $('download');
-    a.href = currentUrl;
-    a.download = res.filename;
-    a.textContent = `Tải xuống ${res.filename}`;
-    renderSummary(res);
-    show('done');
-  } catch (e) {
-    console.error(e);
-    $('errmsg').textContent = e instanceof UserError
-      ? e.message
-      : 'Đã xảy ra lỗi khi xử lý tệp. Tệp có thể bị hỏng hoặc không đúng định dạng.';
-    show('error');
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const tag = files.length > 1 ? `[${i + 1}/${files.length}] ` : '';
+      $('fname').textContent = tag + file.name;
+      $('barfill').style.width = '2%';
+      $('stage').textContent = 'Đang bắt đầu…';
+      try {
+        const res = await convert(file, (msg, frac) => {
+          $('stage').textContent = msg;
+          $('barfill').style.width = `${Math.round(Math.max(0.02, Math.min(1, frac)) * 100)}%`;
+        }, { wordwise: +radioValue('wwlevel'), wordwiseLang: wwLang() });
+        books.push({ blob: res.blob, name: res.filename, url: URL.createObjectURL(res.blob), res });
+      } catch (e) {
+        console.error(e);
+        books.push({ name: file.name, src: file.name, error: e instanceof UserError ? e.message
+          : 'Đã xảy ra lỗi khi xử lý tệp. Tệp có thể bị hỏng hoặc không đúng định dạng.' });
+      }
+    }
+    if (!okBooks().length) {
+      $('errmsg').textContent = books.map(b => `${b.src}: ${b.error}`).join('\n');
+      show('error');
+    } else {
+      $('sendbook-msg').textContent = '';
+      syncSend();
+      renderBooks();
+      show('done');
+    }
   } finally {
     busy = false;
   }
@@ -108,71 +154,108 @@ const drop = $('drop'), input = $('file');
 $('pick').addEventListener('click', e => { e.stopPropagation(); input.click(); });
 drop.addEventListener('click', () => input.click());
 drop.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click(); } });
-input.addEventListener('change', () => { const f = input.files[0]; input.value = ''; handleFile(f); });
+input.addEventListener('change', () => { const f = [...input.files]; input.value = ''; handleFiles(f); });
+$('download').addEventListener('click', () => downloadAll(okBooks()));
 for (const ev of ['dragenter', 'dragover']) {
   window.addEventListener(ev, e => { e.preventDefault(); if (!busy) drop.classList.add('over'); });
 }
 for (const ev of ['dragleave', 'drop']) {
   window.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); });
 }
-window.addEventListener('drop', e => handleFile(e.dataTransfer?.files?.[0]));
+window.addEventListener('drop', e => {
+  // Chỉ nhận thả tệp ở tab ebook; tab hình dùng nút chọn
+  handleFiles(e.dataTransfer?.files);
+});
 $('again').addEventListener('click', () => show('drop'));
 $('retry').addEventListener('click', () => show('drop'));
 
 // --- chuẩn bị hình: chọn -> chỉnh sửa/cắt -> xử lý
-let imgBusy = false, imgUrls = [];
-function showImageResult(res) {
-  for (const u of imgUrls) URL.revokeObjectURL(u);
-  const bmpUrl = URL.createObjectURL(res.bmp.blob), pngUrl = URL.createObjectURL(res.png.blob);
-  imgUrls = [bmpUrl, pngUrl];
-  lastImage = { blob: res.bmp.blob, name: res.bmp.filename };
+let imgBusy = false, imgResults = [], imgQueue = [];
+function renderImages() {
+  const ul = $('imglist');
+  ul.textContent = '';
+  for (const r of imgResults) {
+    const li = document.createElement('li');
+    const img = document.createElement('img');
+    img.className = 'preview'; img.src = r.bmpUrl; img.alt = 'Xem trước hình đã xử lý';
+    li.append(img);
+    const sum = document.createElement('div');
+    sum.className = 'stage';
+    sum.textContent = `${r.bmp.filename} · ${r.srcWidth}×${r.srcHeight} → ${r.width}×${r.height} · BMP 4-bit · ${formatSize(r.bmp.blob.size)}`;
+    li.append(sum);
+    for (const [url, name, label] of [[r.bmpUrl, r.bmp.filename, 'Tải BMP'], [r.pngUrl, r.png.filename, 'Tải PNG']]) {
+      const a = document.createElement('a');
+      a.className = 'link'; a.href = url; a.download = name; a.textContent = label + ' ';
+      li.append(a);
+    }
+    ul.append(li);
+  }
+  const n = imgResults.length;
+  $('imgdownload').textContent = n > 1 ? `Tải xuống tất cả BMP (${n} ảnh)` : 'Tải xuống BMP';
+  $('imgdownloadpng').textContent = n > 1 ? 'Tải tất cả PNG xám 8-bit' : 'Tải PNG xám 8-bit';
   $('sendimg-msg').textContent = '';
   syncSend();
-  $('imgpreview').src = bmpUrl;
-  const a = $('imgdownload');
-  a.href = bmpUrl; a.download = res.bmp.filename;
-  a.textContent = `Tải xuống ${res.bmp.filename}`;
-  const p = $('imgdownloadpng');
-  p.href = pngUrl; p.download = res.png.filename;
-  p.textContent = `Tải PNG xám 8-bit (${res.png.filename})`;
-  $('imgsummary').textContent =
-    `${res.srcWidth}×${res.srcHeight} → ${res.width}×${res.height} · BMP 4-bit 4 mức xám · ${formatSize(res.bmp.blob.size)}`;
-  $('imgresult').hidden = false;
-  $('imgpick').hidden = false;
+  $('imgresult').hidden = !n;
+}
+function clearImages() {
+  for (const r of imgResults) { URL.revokeObjectURL(r.bmpUrl); URL.revokeObjectURL(r.pngUrl); }
+  imgResults = [];
+}
+function showImageResult(res) {
+  imgResults.push({ ...res, bmpUrl: URL.createObjectURL(res.bmp.blob), pngUrl: URL.createObjectURL(res.png.blob) });
+  renderImages();
+  nextImage();
 }
 function imageError(e) {
   console.error(e);
-  $('imgresult').hidden = true;
+  $('imgresult').hidden = !imgResults.length;
   $('imgpick').hidden = false;
   $('imgerror').textContent = e instanceof UserError ? e.message : 'Đã xảy ra lỗi khi xử lý hình.';
   $('imgerror').hidden = false;
 }
 const editor = createEditor({
   onApply: res => showImageResult(res),
-  onCancel: e => { if (e) imageError(e); else $('imgpick').hidden = false; },
+  onCancel: e => { if (e) imageError(e); nextImage(); },
 });
-async function handleImage(file) {
-  if (!file || imgBusy) return;
-  imgBusy = true;
-  $('imgerror').hidden = true;
-  try {
-    const bmp = await decodeImage(file);
-    $('imgresult').hidden = true;
-    $('imgpick').hidden = true;
-    editor.open(bmp, file.name);
-  } catch (e) {
-    imageError(e);
-  } finally {
-    imgBusy = false;
+// Mở lần lượt từng ảnh trong hàng đợi để chỉnh sửa; xong hết mới hiện lại nút chọn.
+async function nextImage() {
+  const q = $('imgqueue');
+  while (imgQueue.length) {
+    const file = imgQueue.shift();
+    try {
+      const bmp = await decodeImage(file);
+      $('imgresult').hidden = true;
+      $('imgpick').hidden = true;
+      q.hidden = false;
+      q.textContent = `Đang chỉnh: ${file.name}${imgQueue.length ? ` (còn ${imgQueue.length} ảnh sau)` : ''}`;
+      editor.open(bmp, file.name);
+      return;
+    } catch (e) {
+      imageError(e);
+    }
   }
+  q.hidden = true;
+  $('imgpick').hidden = false;
+  $('imgresult').hidden = !imgResults.length;
+}
+function handleImages(files) {
+  files = [...(files || [])];
+  if (!files.length || imgBusy) return;
+  clearImages();
+  renderImages();
+  $('imgerror').hidden = true;
+  imgQueue = files;
+  nextImage();
 }
 $('imgpick').addEventListener('click', () => $('imgfile').click());
-$('imgfile').addEventListener('change', () => { const f = $('imgfile').files[0]; $('imgfile').value = ''; handleImage(f); });
-window.__xteinkImage = handleImage;
+$('imgfile').addEventListener('change', () => { const f = [...$('imgfile').files]; $('imgfile').value = ''; handleImages(f); });
+$('imgdownload').addEventListener('click', () => downloadAll(imgResults.map(r => ({ url: r.bmpUrl, name: r.bmp.filename }))));
+$('imgdownloadpng').addEventListener('click', () => downloadAll(imgResults.map(r => ({ url: r.pngUrl, name: r.png.filename }))));
+window.__xteinkImage = f => handleImages([f]);
 window.__xteinkEditor = editor;
 
 // Test hook: cho phép nạp tệp bằng script.
-window.__xteinkConvert = handleFile;
+window.__xteinkConvert = f => handleFiles([f]);
 window.__xteinkConvertRaw = convert;
 
 // --- Tab công cụ
@@ -270,8 +353,9 @@ function syncSend() {
 // Đóng cửa sổ upload, quay về quản lý file và làm mới danh sách
 function leaveUpload() {
   device.uploadMode = false;
-  lastBook = lastImage = null;
-  if (currentUrl) { URL.revokeObjectURL(currentUrl); currentUrl = null; }
+  for (const b of books) if (b.url) URL.revokeObjectURL(b.url);
+  books = [];
+  imgResults = [];
   $('sendbook-msg').textContent = '';
   $('sendimg-msg').textContent = '';
   show('drop');
@@ -307,27 +391,33 @@ async function sendToDevice(blob, name, msgEl, progEl, host = device.host, dir =
     if (progEl) progEl.hidden = true;
   }
 }
-// Gửi kết quả convert: tới thư mục trong cấu hình, hoặc thư mục đang mở khi từ trình quản lý file.
-function wireSend(id, msgId, kind, getItem) {
+// Gửi tất cả kết quả convert: tới thư mục trong cấu hình, hoặc thư mục đang mở khi từ trình quản lý file.
+function wireSend(id, msgId, kind, getItems) {
   $(id).addEventListener('click', async () => {
-    const item = getItem();
-    if (!item) return;
-    if (device.uploadMode) {
-      $(id).disabled = true;
-      const ok = await sendToDevice(item.blob, item.name, $(msgId));
-      $(id).disabled = false;
-      if (ok) leaveUpload();
-      return;
-    }
-    const host = dev.getConfig().host;
-    if (!host) { selectTab('cfg'); cfgMsg('Nhập IP / link của XTEInk để upload trực tiếp.', true); $('cfghost').focus(); return; }
+    const items = getItems();
+    if (!items.length) return;
+    const msg = $(msgId);
+    const uploadMode = device.uploadMode;
+    const host = uploadMode ? device.host : dev.getConfig().host;
+    if (!uploadMode && !host) { selectTab('cfg'); cfgMsg('Nhập IP / link của XTEInk để upload trực tiếp.', true); $('cfghost').focus(); return; }
     $(id).disabled = true;
-    await sendToDevice(item.blob, item.name, $(msgId), null, host, targetDir(kind), true);
+    let okCount = 0;
+    for (let i = 0; i < items.length; i++) {
+      const tag = items.length > 1 ? `[${i + 1}/${items.length}] ` : '';
+      const ok = uploadMode
+        ? await sendToDevice(items[i].blob, items[i].name, msg)
+        : await sendToDevice(items[i].blob, items[i].name, msg, null, host, targetDir(kind), true);
+      if (ok) okCount++;
+      else break;
+      if (items.length > 1) msg.textContent = `${tag}Đã gửi ${items[i].name}${i + 1 < items.length ? '…' : ''}`;
+    }
+    if (items.length > 1 && okCount === items.length) { msg.textContent = `Đã gửi ${okCount} tệp.`; msg.classList.remove('err'); }
     $(id).disabled = false;
+    if (uploadMode && okCount === items.length) leaveUpload();
   });
 }
-wireSend('sendbook', 'sendbook-msg', 'book', () => lastBook);
-wireSend('sendimg', 'sendimg-msg', 'image', () => lastImage);
+wireSend('sendbook', 'sendbook-msg', 'book', () => okBooks().map(b => ({ blob: b.blob, name: b.name })));
+wireSend('sendimg', 'sendimg-msg', 'image', () => imgResults.map(r => ({ blob: r.bmp.blob, name: r.bmp.filename })));
 $('sendbanner-back').addEventListener('click', leaveUpload);
 
 function setConnected(host, info) {
