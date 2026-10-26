@@ -1,5 +1,5 @@
 // Lõi chuyển đổi: các tài liệu đã parse + TOC gốc -> danh sách chương {title, paras[]}.
-import { UserError, cleanText, looksLikeChapterTitle, tick, MK, richPlain, stripPrivate, tidyRich, MK_TAG } from './util.js';
+import { UserError, cleanText, looksLikeChapterTitle, tick, MK, richPlain, stripPrivate, tidyRich, toScript, unwrapBrackets } from './util.js';
 
 const SKIP = new Set([
   'script', 'style', 'link', 'meta', 'title', 'head', 'noscript', 'template', 'iframe',
@@ -26,6 +26,20 @@ const ITALIC_TAGS = new Set(['i', 'em', 'cite', 'dfn', 'var']);
 const BOLD_TAGS = new Set(['b', 'strong']);
 const ITALIC_CLS = /(^|[\s_-])(italic|italics|ital|emphasis)([\s_-]|$)/i;
 const BOLD_CLS = /(^|[\s_-])(bold|strong)([\s_-]|$)/i;
+// Khớp nguyên tên class (không khớp 'sub-title', 'sup_heading'...)
+const SUP_CLS = /(^|\s)(sup|superscript|noteref|footnote-?ref|fnref|note-?ref)(\s|$)/i;
+const SUB_CLS = /(^|\s)(sub|subscript)(\s|$)/i;
+
+/** Chỉ số trên/dưới theo tag, style, epub:type hoặc class (sách thường dùng CSS thay cho <sup>). */
+function scriptKind(el, name) {
+  if (name === 'sup' || name === 'sub') return name;
+  const style = el.getAttribute('style') || '';
+  const cls = el.getAttribute('class') || '';
+  const type = el.getAttribute('epub:type') || el.getAttributeNS?.('http://www.idpf.org/2007/ops', 'type') || '';
+  if (/vertical-align\s*:\s*(super|text-top)/i.test(style) || SUP_CLS.test(cls) || /(^|\s)noteref(\s|$)/.test(type) || el.getAttribute('role') === 'doc-noteref') return 'sup';
+  if (/vertical-align\s*:\s*(sub|text-bottom)/i.test(style) || SUB_CLS.test(cls)) return 'sub';
+  return null;
+}
 
 /** Phần tử có in nghiêng / in đậm không (theo tag, style hoặc class). */
 function inlineStyle(el, name) {
@@ -53,17 +67,18 @@ function flatten(doc, docHref, targets, out) {
   let flagCls = false;
   // Markup nội tuyến (i, b) và danh sách (ul/ol/li, phẳng, không lồng)
   const open = [];      // thứ tự các tag nội tuyến đang mở: 'i' | 'b'
-  const depth = { i: 0, b: 0, sup: 0, sub: 0 };
+  const depth = { i: 0, b: 0 };
   let pendingLi = null; // MK.UL | MK.OL cho đoạn kế tiếp
   let curLi = null;     // mục li đang mở: {item}
   let bqDepth = 0, centerDepth = 0;
+  let script = null;    // {kind:'sup'|'sub', strip, convert} khi đang ở trong chỉ số trên/dưới
   let listKind = [];    // ngăn xếp ul/ol đang mở
 
   const bufPlain = () => richPlain(buf.join(''));
 
   const flush = () => {
     if (headingDepth) return;
-    const tail = open.slice().reverse().map(n => MK_TAG[n][1]).join('');
+    const tail = open.slice().reverse().map(n => (n === 'i' ? MK.I0 : MK.B0)).join('');
     const rich = tidyRich(cleanText(buf.join('') + tail));
     const plain = cleanText(richPlain(rich));
     if (plain) {
@@ -79,26 +94,30 @@ function flatten(doc, docHref, targets, out) {
       }
       pendingLi = null;
     }
-    buf = open.map(n => MK_TAG[n][0]);
+    buf = open.map(n => (n === 'i' ? MK.I1 : MK.B1));
     linkChars = 0; totalChars = 0;
   };
 
   const openTag = (n) => {
     if (headingDepth) return;
-    if (depth[n]++ === 0) { open.push(n); buf.push(MK_TAG[n][0]); }
+    if (depth[n]++ === 0) { open.push(n); buf.push(n === 'i' ? MK.I1 : MK.B1); }
   };
   const closeTag = (n) => {
     if (headingDepth) return;
     if (--depth[n] === 0) {
       const k = open.lastIndexOf(n);
       if (k >= 0) open.splice(k, 1);
-      buf.push(MK_TAG[n][1]);
+      buf.push(n === 'i' ? MK.I0 : MK.B0);
     }
   };
 
   const addText = (s) => {
     s = stripPrivate(s || '');
     if (!s) return;
+    if (script) {
+      if (script.strip) s = s.replace(/[[\]()]/g, '');
+      if (script.convert) s = toScript(s, script.kind) ?? s;
+    }
     if (pendingCap && s.trim()) {
       if (pendingCap.loose || pendingCap.block === curBlock) s = pendingCap.letter + s.replace(/^\s+/, '');
       pendingCap = null;
@@ -172,7 +191,7 @@ function flatten(doc, docHref, targets, out) {
       for (const c of el.childNodes) walk(c);
       headingDepth = 0;
       const text = cleanText(bufPlain());
-      buf = open.map(n => MK_TAG[n][0]); linkChars = 0; totalChars = 0;
+      buf = open.map(n => (n === 'i' ? MK.I1 : MK.B1)); linkChars = 0; totalChars = 0;
       if (text) out.push({ t: 'h', level: Number(hm[1]), text });
       return;
     }
@@ -187,16 +206,20 @@ function flatten(doc, docHref, targets, out) {
     if (isList) listKind.push(name);
     if (name === 'blockquote' && !headingDepth) { flush(); bqDepth++; }
     if (name === 'center' && !headingDepth) { flush(); centerDepth++; }
-    const sc = name === 'sup' || name === 'sub' ? name : null;
+    const sc = scriptKind(el, name);
+    const savedScript = script;
+    if (sc && !script) {
+      const raw = el.textContent || '', inner = unwrapBrackets(raw);
+      script = { kind: sc, strip: inner !== raw, convert: toScript(inner, sc) !== null };
+    }
     const savedLi = curLi;
     if (isLi) curLi = { item: null };
     if (inl.i) openTag('i');
     if (inl.b) openTag('b');
-    if (sc) openTag(sc);
     try {
       walkElement(el, name, hm);
     } finally {
-      if (sc) closeTag(sc);
+      script = savedScript;
       if (inl.b) closeTag('b');
       if (inl.i) closeTag('i');
       if (isLi) { flush(); curLi = savedLi; pendingLi = null; }

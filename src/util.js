@@ -192,31 +192,43 @@ export function looksLikeChapterTitle(text) {
 
 // --- Markup nội tuyến trong đoạn văn: ký tự private-use làm dấu hiệu, giữ nguyên là chuỗi để các bước
 // cắt chương/tách đoạn không phải đổi kiểu dữ liệu. Tag được hỗ trợ: i, b (nội tuyến), ul/ol/li và blockquote (đánh dấu đầu đoạn).
-export const MK = { I1: '\uE000', I0: '\uE001', B1: '\uE002', B0: '\uE003', P1: '\uE004', P0: '\uE005', S1: '\uE006', S0: '\uE007', UL: '\uE010', OL: '\uE011', BQ: '\uE012', CTR: '\uE013' };
-// Cặp [mở, đóng] của từng tag nội tuyến
-export const MK_TAG = { i: [MK.I1, MK.I0], b: [MK.B1, MK.B0], sup: [MK.P1, MK.P0], sub: [MK.S1, MK.S0] };
-// Cặp rỗng (mở liền đóng, chỉ có khoảng trắng giữa) được bỏ
-const EMPTY_PAIRS = Object.values(MK_TAG).map(([o, c]) => [o, c]);
-const dropEmpty = s => {
-  let prev;
-  do {
-    prev = s;
-    for (const [o, c] of EMPTY_PAIRS) s = s.replace(new RegExp(`${o}(\\s*)${c}`, 'g'), '$1');
-  } while (s !== prev);
-  return s;
-};
-const MK_ALL = /[\uE000-\uE007\uE010-\uE013]/g;
-const TAGS = { '\uE000': ['i', 1], '\uE001': ['i', 0], '\uE002': ['b', 1], '\uE003': ['b', 0], '\uE004': ['sup', 1], '\uE005': ['sup', 0], '\uE006': ['sub', 1], '\uE007': ['sub', 0] };
+export const MK = { I1: '\uE000', I0: '\uE001', B1: '\uE002', B0: '\uE003', UL: '\uE010', OL: '\uE011', BQ: '\uE012', CTR: '\uE013' };
+const MK_ALL = /[\uE000-\uE003\uE010-\uE013]/g;
+const TAGS = { '\uE000': ['i', 1], '\uE001': ['i', 0], '\uE002': ['b', 1], '\uE003': ['b', 0] };
 
 /** Bỏ cặp tag rỗng và khoảng trắng thừa sinh ra quanh chúng. */
 export function tidyRich(s) {
-  return dropEmpty(s).replace(/ {2,}/g, ' ').trim();
+  let prev;
+  do { prev = s; s = s.replace(/([\uE000\uE002])(\s*)[\uE001\uE003]/g, '$2'); } while (s !== prev);
+  return s.replace(/ {2,}/g, ' ').trim();
 }
 
 /** Đoạn văn không kèm dấu hiệu markup. */
 export const richPlain = s => s.replace(MK_ALL, '');
 /** Bỏ ký tự private-use có sẵn trong nguồn (font icon...) để không bị nhầm với dấu hiệu. */
 export const stripPrivate = s => s.replace(/[-]/g, '');
+
+const SUP = { 0: '⁰', 1: '¹', 2: '²', 3: '³', 4: '⁴', 5: '⁵', 6: '⁶', 7: '⁷', 8: '⁸', 9: '⁹', '+': '⁺', '-': '⁻', '−': '⁻', '–': '⁻', '=': '⁼', '(': '⁽', ')': '⁾', n: 'ⁿ', i: 'ⁱ' };
+const SUB = { 0: '₀', 1: '₁', 2: '₂', 3: '₃', 4: '₄', 5: '₅', 6: '₆', 7: '₇', 8: '₈', 9: '₉', '+': '₊', '-': '₋', '−': '₋', '–': '₋', '=': '₌', '(': '₍', ')': '₎' };
+const KEEP = /^[\s*†‡,.]$/;
+
+/** Bỏ ngoặc bao quanh toàn bộ nội dung sup/sub: "[1]" -> "1", "(2)" -> "2". */
+export const unwrapBrackets = s => { const m = /^\s*[[(]\s*([^[\]()]*?)\s*[\])]\s*$/.exec(s); return m ? m[1] : s; };
+
+/**
+ * Chuyển nội dung <sup>/<sub> sang ký tự Unicode (¹ ² ³ ₂ …). Dấu * † ‡ , . giữ nguyên.
+ * Trả về null nếu có ký tự không có dạng chỉ số, khi đó giữ chữ như cũ.
+ */
+export function toScript(text, kind) {
+  const map = kind === 'sub' ? SUB : SUP;
+  let out = '';
+  for (const ch of text) {
+    if (KEEP.test(ch)) out += ch;
+    else if (map[ch]) out += map[ch];
+    else return null;
+  }
+  return out;
+}
 
 /** @returns {{kind:'ul'|'ol'|'bq'|'ctr'|null, body:string}} */
 export function splitBlock(s) {
@@ -232,7 +244,8 @@ export function splitBlock(s) {
  * thay thế phần chữ tương ứng bằng `html` (dùng cho Wordwise); khoảng nào băng qua dấu hiệu thì bị bỏ.
  */
 export function richToHtml(body, hits = []) {
-  body = dropEmpty(body);
+  let prev;
+  do { prev = body; body = body.replace(/([])(\s*)[]/g, '$2'); } while (body !== prev);
   let out = '', po = 0, hi = 0;
   const stack = [];
   const closeTo = (name) => {
