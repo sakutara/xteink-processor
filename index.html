@@ -21,6 +21,7 @@
       <nav class="tabs" role="tablist" aria-label="Công cụ">
         <button type="button" role="tab" id="tab-epub" class="tab" aria-controls="panel-epub" aria-selected="true">Chuyển ebook</button>
         <button type="button" role="tab" id="tab-img" class="tab" aria-controls="panel-img" aria-selected="false" tabindex="-1">Hình cho X3</button>
+        <button type="button" role="tab" id="tab-cfg" class="tab" aria-controls="panel-cfg" aria-selected="false" tabindex="-1">Cấu hình</button>
       </nav>
       <button type="button" id="devopen" class="btn sm">Kết nối XTEink</button>
       <button type="button" id="devdisc" class="btn sm" hidden>Ngắt kết nối</button>
@@ -126,10 +127,12 @@
     <section id="done" class="card" hidden>
       <div class="ok">Đã chuyển đổi xong</div>
       <div id="summary" class="chips"></div>
-      <a id="download" class="btn primary big" href="#">Tải xuống</a>
-      <button type="button" id="sendbook" class="btn primary big send" hidden>Gửi vào Xteink</button>
+      <div class="actions">
+        <a id="download" class="btn primary big" href="#">Tải xuống</a>
+        <button type="button" id="sendbook" class="btn send">Upload lên XTEInk</button>
+      </div>
       <div id="sendbook-msg" class="stage" aria-live="polite"></div>
-      <p class="hint small">Chưa kết nối máy? Tải xuống rồi chép vào máy đọc qua thẻ nhớ hoặc cáp.</p>
+      <p class="hint small">Chưa có IP máy? Tải xuống rồi chép vào máy đọc qua thẻ nhớ hoặc cáp, hoặc điền IP ở tab Cấu hình.</p>
       <button type="button" id="again" class="link">Chuyển tệp khác</button>
     </section>
 
@@ -182,13 +185,37 @@
       <div id="imgresult" hidden>
         <img id="imgpreview" class="preview" alt="Xem trước hình đã xử lý">
         <div id="imgsummary" class="stage"></div>
-        <a id="imgdownload" class="btn primary" href="#">Tải xuống BMP</a>
+        <div class="actions">
+          <a id="imgdownload" class="btn primary" href="#">Tải xuống BMP</a>
+          <button type="button" id="sendimg" class="btn send">Upload lên XTEInk</button>
+        </div>
         <a id="imgdownloadpng" class="link" href="#">Tải PNG xám 8-bit</a>
-        <button type="button" id="sendimg" class="btn primary send" hidden>Gửi BMP vào Xteink</button>
         <div id="sendimg-msg" class="stage" aria-live="polite"></div>
       </div>
       <div id="imgerror" class="stage err" role="alert" hidden></div>
     </section>
+    </div>
+
+    <div class="tool tool-cfg" id="panel-cfg" role="tabpanel" aria-labelledby="tab-cfg" hidden>
+      <section class="card cfg">
+        <div class="opts-head"><h2>Cấu hình XTEInk</h2><span class="tag">Lưu trên thiết bị này</span></div>
+        <p class="hint desc">Dùng cho nút "Upload lên XTEInk" và cửa sổ kết nối. Thay đổi được lưu ngay.</p>
+        <label class="ed-field cfg-field">IP / link tới XTEInk
+          <input id="cfghost" class="dev-input" type="text" inputmode="decimal" autocomplete="off" placeholder="Ví dụ 192.168.1.50 (để trống nếu không dùng)">
+        </label>
+        <label class="ed-field cfg-field">Thư mục chứa sách
+          <input id="cfgbook" class="dev-input" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="/books">
+        </label>
+        <label class="ed-field cfg-field">Thư mục chứa ảnh
+          <input id="cfgimg" class="dev-input" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="/sleep">
+        </label>
+        <p class="hint small">Thư mục có thể nhiều tầng, ví dụ <code>/books/tien_hiep</code>; chưa có thì tự tạo khi upload.</p>
+        <div class="dev-bar">
+          <button type="button" id="cfgtest" class="btn sm">Kiểm tra kết nối</button>
+          <button type="button" id="cfgreset" class="link">Đặt lại thư mục mặc định</button>
+        </div>
+        <div id="cfgmsg" class="stage" aria-live="polite"></div>
+      </section>
     </div>
 
     </div>

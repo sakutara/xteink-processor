@@ -13,6 +13,8 @@ Chạy hoàn toàn trên trình duyệt, cài được như PWA và dùng đư�
 Sách có DRM không chuyển đổi được.
 
 ## Kết nối và quản lý file trên Xteink
+Tab "Cấu hình" lưu trên trình duyệt: IP/link XTEInk, thư mục sách (mặc định `/books`) và thư mục ảnh (mặc định `/sleep`), cho phép nhiều tầng (ví dụ `/books/tien_hiep`, tự tạo nếu chưa có). Cửa sổ "Kết nối XTEink" dùng chung IP này. Sau khi chuyển sách/ảnh xong, nút "Upload lên XTEInk" nằm dưới nút Tải xuống: chưa có IP thì nhỏ và xám (bấm sẽ mở tab Cấu hình); có IP thì thành nút chính, còn Tải xuống thành liên kết. Gửi lỗi sẽ báo và gợi ý tải xuống.
+
 App có hai trạng thái. Khi ngắt kết nối, app chạy như bản trước (chuyển ebook, chuẩn bị hình, tải xuống) kèm nút "Kết nối XTEink". Khi đã kết nối, app chỉ hiện trình quản lý file và nút "Ngắt kết nối". Giao tiếp qua web server Wi-Fi của CrossInk/CrossPoint (`/api/status`, `/api/files`, `/upload`, `/mkdir`, `/rename`, `/move`, `/delete`; server bật CORS).
 1. Trên máy bật truyền tệp qua Wi-Fi, để máy và thiết bị này cùng mạng.
 2. Bấm "Kết nối XTEink", rồi "Quét mạng" (thử IP đã lưu, `crosspoint.local`, rồi quét các dải /24 thường gặp) hoặc nhập IP rồi "Kết nối".

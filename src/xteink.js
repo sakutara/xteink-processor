@@ -50,11 +50,51 @@ export async function probe(host, ms = 1500, signal) {
   }
 }
 
-export function savedHost() {
-  try { return localStorage.getItem(SAVED_KEY) || ''; } catch { return ''; }
+export const DEFAULT_CONFIG = { host: '', bookDir: '/books', imageDir: '/sleep' };
+const CONFIG_KEY = 'xteink-config';
+
+/** Chuẩn hoá thư mục: có "/" đầu, không "/" cuối, không "//" ("books/a/" -> "/books/a"). Rỗng -> "/". */
+export function normalizeDir(p) {
+  const parts = String(p || '').replace(/\\/g, '/').split('/').map(x => x.trim()).filter(x => x && x !== '.' && x !== '..');
+  return '/' + parts.join('/');
 }
-export function saveHost(host) {
-  try { localStorage.setItem(SAVED_KEY, host); } catch { /* bỏ qua */ }
+export function normalizeHost(h) {
+  return String(h || '').trim().replace(/^https?:\/\//i, '').replace(/\/.*$/, '');
+}
+
+export function getConfig() {
+  let c = {};
+  try { c = JSON.parse(localStorage.getItem(CONFIG_KEY) || '{}') || {}; } catch { /* bỏ qua */ }
+  if (c.host === undefined) { // chuyển từ khoá cũ
+    try { c.host = localStorage.getItem(SAVED_KEY) || ''; } catch { /* bỏ qua */ }
+  }
+  return {
+    host: normalizeHost(c.host),
+    bookDir: normalizeDir(c.bookDir || DEFAULT_CONFIG.bookDir),
+    imageDir: normalizeDir(c.imageDir || DEFAULT_CONFIG.imageDir),
+  };
+}
+/** Lưu một phần cấu hình, trả về cấu hình đầy đủ. Phát sự kiện "xteink-config" để giao diện đồng bộ. */
+export function saveConfig(patch) {
+  const c = { ...getConfig(), ...patch };
+  c.host = normalizeHost(c.host);
+  c.bookDir = normalizeDir(c.bookDir || DEFAULT_CONFIG.bookDir);
+  c.imageDir = normalizeDir(c.imageDir || DEFAULT_CONFIG.imageDir);
+  try { localStorage.setItem(CONFIG_KEY, JSON.stringify(c)); } catch { /* bỏ qua */ }
+  window.dispatchEvent(new CustomEvent('xteink-config', { detail: c }));
+  return c;
+}
+export const savedHost = () => getConfig().host;
+export const saveHost = host => saveConfig({ host });
+
+/** Tạo thư mục (nhiều tầng) nếu chưa có. */
+export async function ensureDir(host, dir) {
+  let acc = '/';
+  for (const part of normalizeDir(dir).split('/').filter(Boolean)) {
+    const items = await list(host, acc);
+    if (!items.some(i => i.isDirectory && i.name === part)) await mkdir(host, acc, part);
+    acc = joinPath(acc, part);
+  }
 }
 
 function prefixOf(host) {

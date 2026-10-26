@@ -176,8 +176,8 @@ window.__xteinkConvert = handleFile;
 window.__xteinkConvertRaw = convert;
 
 // --- Tab công cụ
-const TABS = { epub: ['tab-epub', 'panel-epub'], img: ['tab-img', 'panel-img']};
-const TAB_ORDER = ['epub', 'img'];
+const TABS = { epub: ['tab-epub', 'panel-epub'], img: ['tab-img', 'panel-img'], cfg: ['tab-cfg', 'panel-cfg'] };
+const TAB_ORDER = ['epub', 'img', 'cfg'];
 function selectTab(name, focus) {
   if (!TABS[name]) name = 'epub';
   for (const [k, [tabId, panelId]] of Object.entries(TABS)) {
@@ -251,17 +251,19 @@ const devMsg = (t, err) => { const m = $('devmsg'); m.textContent = t || ''; m.c
 const devErr = t => { const e = $('deverr'); e.textContent = t || ''; e.hidden = !t; };
 const connected = () => !!device.host;
 
-// Nút "Gửi vào Xteink" + banner thư mục đích ở tab sách/ảnh
+// Nút "Upload lên XTEInk": nhỏ/xám khi chưa có IP trong cấu hình, nút chính khi đã có.
+// Ở chế độ upload từ trình quản lý file, đích là thư mục đang mở; ngược lại là thư mục trong cấu hình.
+const targetDir = kind => (device.uploadMode ? device.cwd : kind === 'book' ? dev.getConfig().bookDir : dev.getConfig().imageDir);
 function syncSend() {
-  const on = connected();
-  $('sendbook').hidden = !(on && lastBook);
-  $('sendimg').hidden = !(on && lastImage);
-  if (on) {
-    $('sendbook').textContent = `Gửi vào Xteink (${device.cwd})`;
-    $('sendimg').textContent = `Gửi BMP vào Xteink (${device.cwd})`;
+  const hasHost = !!dev.getConfig().host;
+  document.body.classList.toggle('has-host', hasHost);
+  for (const [id, kind, label] of [['sendbook', 'book', 'Upload lên XTEInk'], ['sendimg', 'image', 'Upload lên XTEInk']]) {
+    const b = $(id);
+    b.classList.toggle('muted', !hasHost);
+    b.textContent = hasHost || device.uploadMode ? `${label} (${targetDir(kind)})` : label;
   }
   const banner = $('sendbanner');
-  banner.hidden = !(on && device.uploadMode);
+  banner.hidden = !(connected() && device.uploadMode);
   if (!banner.hidden) $('sendbanner-text').textContent = `Xong sẽ gửi thẳng vào thư mục ${device.cwd} trên Xteink.`;
 }
 
@@ -280,11 +282,11 @@ function leaveUpload() {
 }
 
 // Gửi một Blob vào thư mục hiện hành; hỏi trước khi ghi đè tệp trùng tên.
-async function sendToDevice(blob, name, msgEl, progEl) {
-  const host = device.host, dir = device.cwd;
+async function sendToDevice(blob, name, msgEl, progEl, host = device.host, dir = device.cwd, mkdirs = false) {
   const set = t => { msgEl.textContent = t; msgEl.classList.remove('err'); };
   const fail = t => { msgEl.textContent = t; msgEl.classList.add('err'); };
   try {
+    if (mkdirs) { set(`Đang chuẩn bị thư mục ${dir}…`); await dev.ensureDir(host, dir); }
     const existing = await dev.list(host, dir);
     if (existing.some(f => f.name === name && !f.isDirectory)) {
       if (!confirm(`"${name}" đã có trong ${dir}. Ghi đè?`)) { set('Đã huỷ.'); return false; }
@@ -299,26 +301,33 @@ async function sendToDevice(blob, name, msgEl, progEl) {
     set(`Đã gửi ${name} vào ${dir}.`);
     return true;
   } catch (e) {
-    fail(e instanceof dev.DeviceError ? e.message : 'Gửi tệp thất bại.');
+    fail((e instanceof dev.DeviceError ? e.message : 'Gửi tệp thất bại.') + (mkdirs ? ' Bạn có thể bấm Tải xuống rồi chép vào máy qua thẻ nhớ hoặc cáp.' : ''));
     return false;
   } finally {
     if (progEl) progEl.hidden = true;
   }
 }
-$('sendbook').addEventListener('click', async () => {
-  if (!lastBook) return;
-  $('sendbook').disabled = true;
-  const ok = await sendToDevice(lastBook.blob, lastBook.name, $('sendbook-msg'));
-  $('sendbook').disabled = false;
-  if (ok) leaveUpload();
-});
-$('sendimg').addEventListener('click', async () => {
-  if (!lastImage) return;
-  $('sendimg').disabled = true;
-  const ok = await sendToDevice(lastImage.blob, lastImage.name, $('sendimg-msg'));
-  $('sendimg').disabled = false;
-  if (ok) leaveUpload();
-});
+// Gửi kết quả convert: tới thư mục trong cấu hình, hoặc thư mục đang mở khi từ trình quản lý file.
+function wireSend(id, msgId, kind, getItem) {
+  $(id).addEventListener('click', async () => {
+    const item = getItem();
+    if (!item) return;
+    if (device.uploadMode) {
+      $(id).disabled = true;
+      const ok = await sendToDevice(item.blob, item.name, $(msgId));
+      $(id).disabled = false;
+      if (ok) leaveUpload();
+      return;
+    }
+    const host = dev.getConfig().host;
+    if (!host) { selectTab('cfg'); cfgMsg('Nhập IP / link của XTEInk để upload trực tiếp.', true); $('cfghost').focus(); return; }
+    $(id).disabled = true;
+    await sendToDevice(item.blob, item.name, $(msgId), null, host, targetDir(kind), true);
+    $(id).disabled = false;
+  });
+}
+wireSend('sendbook', 'sendbook-msg', 'book', () => lastBook);
+wireSend('sendimg', 'sendimg-msg', 'image', () => lastImage);
 $('sendbanner-back').addEventListener('click', leaveUpload);
 
 function setConnected(host, info) {
@@ -326,7 +335,7 @@ function setConnected(host, info) {
   device.cwd = '/';
   device.moving = null;
   if (host) dev.saveHost(host);
-  $('devhost').value = host || $('devhost').value;
+  if (host) $('devhost').value = host;
   device.uploadMode = false;
   const st = $('devstatus');
   st.textContent = host ? `Đã kết nối${info?.device ? ' · ' + info.device : ''} · ${host}` : 'Chưa kết nối';
@@ -336,7 +345,7 @@ function setConnected(host, info) {
 }
 
 async function connectTo(host) {
-  host = host.trim().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+  host = dev.normalizeHost(host);
   if (!host) { devMsg('Nhập IP của máy, hoặc bấm Quét mạng.', true); return; }
   devMsg(`Đang kết nối ${host}…`);
   const info = await dev.probe(host, 4000);
@@ -497,9 +506,36 @@ $('rawfile').addEventListener('change', async () => {
   refresh();
 });
 
+// --- Trang cấu hình (dùng chung với cửa sổ kết nối)
+const cfgMsg = (t, err) => { const m = $('cfgmsg'); m.textContent = t || ''; m.classList.toggle('err', !!err); };
+function renderConfig() {
+  const c = dev.getConfig();
+  for (const [id, v] of [['cfghost', c.host], ['cfgbook', c.bookDir], ['cfgimg', c.imageDir], ['devhost', c.host]]) {
+    if (document.activeElement !== $(id)) $(id).value = v;
+  }
+  syncSend();
+}
+window.addEventListener('xteink-config', renderConfig);
+$('cfghost').addEventListener('input', () => dev.saveConfig({ host: $('cfghost').value }));
+$('devhost').addEventListener('input', () => dev.saveConfig({ host: $('devhost').value }));
+$('cfgbook').addEventListener('change', () => { dev.saveConfig({ bookDir: $('cfgbook').value }); $('cfgbook').value = dev.getConfig().bookDir; });
+$('cfgimg').addEventListener('change', () => { dev.saveConfig({ imageDir: $('cfgimg').value }); $('cfgimg').value = dev.getConfig().imageDir; });
+for (const id of ['cfghost', 'devhost']) $(id).addEventListener('blur', () => { $(id).value = dev.getConfig().host; });
+$('cfgreset').addEventListener('click', () => {
+  dev.saveConfig({ bookDir: dev.DEFAULT_CONFIG.bookDir, imageDir: dev.DEFAULT_CONFIG.imageDir });
+  $('cfgbook').value = dev.getConfig().bookDir; $('cfgimg').value = dev.getConfig().imageDir;
+});
+$('cfgtest').addEventListener('click', async () => {
+  const host = dev.getConfig().host;
+  if (!host) { cfgMsg('Chưa nhập IP.', true); return; }
+  cfgMsg(`Đang kết nối ${host}…`);
+  const info = await dev.probe(host, 4000);
+  if (info) cfgMsg(`Kết nối được${info.device ? ' · ' + info.device : ''}.`);
+  else cfgMsg(`Không thấy máy Xteink tại ${host}. Kiểm tra máy đã bật Wi-Fi truyền tệp và cùng mạng.` + (dev.isSecurePage() ? ' Trang HTTPS có thể bị trình duyệt chặn khi gọi máy HTTP; thử bản HTTP trong cửa sổ Kết nối XTEink.' : ''), true);
+});
+
 function initDevice() {
-  const saved = dev.savedHost();
-  if (saved) $('devhost').value = saved;
+  renderConfig();
   // Bản HTTP của trang: gọi được máy (HTTP) trên mọi trình duyệt, kể cả điện thoại; mang theo IP đang nhập.
   $('httplink').addEventListener('click', () => {
     const ip = $('devhost').value.trim();
@@ -515,7 +551,6 @@ function initDevice() {
     connectTo(decodeURIComponent(m[1]));
     return;
   }
-  if (saved && !dev.isSecurePage()) dev.probe(saved, 2500).then(info => { if (info && !connected()) setConnected(saved, info); });
 }
 
 selectTab(location.hash === '#hinh' ? 'img' : store.get('xteink-tab'));

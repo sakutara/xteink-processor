@@ -158,8 +158,10 @@ footer p { margin: 0; }
 /* Bố cục gọn: không cuộn trên màn hình ngắn / ngang */
 .opts .hint.small { min-height: 1.2em; }
 @media (min-width: 760px), (min-width: 560px) and (max-height: 520px) {
-  .tabs { order: 0; flex: 0 1 340px; min-width: 0; }
+  .tabs { order: 0; flex: 0 0 auto; min-width: 0; }
+  .tab { flex: 0 0 auto; padding: 6px 12px; }
   .top { flex-wrap: nowrap; }
+  .top > .btn, .top > .badge { flex: none; white-space: nowrap; }
   .tool-epub { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); align-items: stretch; }
   .tool-epub > .opts { grid-column: 1; grid-row: 1 / span 4; align-self: start; }
   .tool-epub > :not(.opts) { grid-column: 2; }
@@ -227,7 +229,7 @@ footer p { margin: 0; }
 /* Màn gần vuông, thấp (ví dụ màn ngoài của máy gập khi xoay ngang) */
 @media (min-width: 560px) and (max-width: 759px) and (max-height: 520px) {
   h1 { white-space: nowrap; font-size: 1.2rem; }
-  .tabs { flex-basis: 250px; }
+  .tab { padding: 5px 9px; font-size: .9rem; }
   .tool-epub { grid-template-columns: minmax(0, 6fr) minmax(0, 5fr); }
   .seg span { padding: 5px 7px; font-size: .82rem; }
   .row-label { font-size: .88rem; }
@@ -286,6 +288,18 @@ footer p { margin: 0; }
 .flist .acts button.del { color: var(--err); }
 .flist .empty { color: var(--muted); justify-content: center; }
 .send { margin-top: 8px; }
+.actions { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.actions .btn { margin-top: 0; }
+.actions .send { margin-top: 0; }
+/* Chưa có IP: nút upload nhỏ, xám. Có IP: upload là nút chính, tải xuống thành liên kết. */
+.btn.send.muted { background: var(--card); border-color: var(--line); color: var(--muted); padding: 6px 12px; font-size: .9rem; font-weight: 500; }
+body.has-host .actions .send { order: -1; background: var(--accent); border-color: var(--accent); color: var(--accent-fg); padding: 14px 28px; font-size: 1.05rem; font-weight: 600; }
+body.has-host #imgdownload, body.has-host #download { background: none; border: 0; color: var(--muted); text-decoration: underline; padding: 4px; font-size: .95rem; font-weight: 400; }
+.cfg { text-align: left; }
+.cfg-field { display: block; margin-top: 10px; font-weight: 600; }
+.cfg-field .dev-input { display: block; width: 100%; box-sizing: border-box; margin-top: 4px; font-weight: 400; }
+.cfg .dev-bar { margin-top: 10px; align-items: center; }
+.btn.send:disabled { opacity: .6; cursor: default; }
 #devprogfill { height: 100%; width: 0; background: var(--accent); transition: width .2s; }
 
 /* Ba trạng thái: data-mode = off | on | upload */
@@ -295,3 +309,17 @@ body[data-mode="on"] .tools, body[data-mode="on"] .tabs, body[data-mode="on"] .s
 body[data-mode="upload"] #download, body[data-mode="upload"] #imgdownload, body[data-mode="upload"] #imgdownloadpng,
 body[data-mode="upload"] #done .hint { display: none !important; }
 #sendbanner { flex: none; }
+body.has-host #done .hint { display: none; }
+
+/* Ba tab + nút + badge không đủ chỗ trên một hàng: tab xuống hàng riêng */
+@media (min-width: 560px) and (max-width: 1079px) {
+  .top { flex-wrap: wrap; }
+  .tabs { order: 3; flex: 1 1 100%; }
+  .tab { flex: 1 1 0; }
+}
+@media (max-width: 559px) {
+  .brand { flex: 1 1 100%; }
+}
+@media (max-width: 559px) {
+  .tab { padding: 6px 6px; font-size: .92rem; }
+}
