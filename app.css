@@ -328,3 +328,5 @@ body.has-host #done .hint { display: none; }
 .rlist li { padding: 10px 0; border-bottom: 1px solid rgba(128,128,128,.25); }
 .rlist .rname { font-weight: 600; word-break: break-all; margin-bottom: 4px; }
 #errmsg { white-space: pre-line; }
+.details { margin: 8px 0 12px; text-align: left; }
+.details summary { cursor: pointer; font-weight: 600; padding: 6px 0; }

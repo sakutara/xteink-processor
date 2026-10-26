@@ -101,6 +101,8 @@ function renderBooks() {
     ul.append(li);
   }
   const ok = books.filter(b => !b.error);
+  $('booksummary').textContent = `Chi tiết (${books.length} tệp${books.length > ok.length ? `, ${books.length - ok.length} lỗi` : ''})`;
+  $('bookdetails').open = books.length === 1;
   $('download').textContent = ok.length > 1 ? `Tải xuống tất cả (${ok.length} tệp)` : `Tải xuống ${ok[0]?.name || ''}`;
   $('sendbook').hidden = !ok.length;
   $('download').hidden = !ok.length;
@@ -191,6 +193,8 @@ function renderImages() {
     ul.append(li);
   }
   const n = imgResults.length;
+  $('imgsummary2').textContent = `Chi tiết (${n} ảnh)`;
+  $('imgdetails').open = n === 1;
   $('imgdownload').textContent = n > 1 ? `Tải xuống tất cả BMP (${n} ảnh)` : 'Tải xuống BMP';
   $('imgdownloadpng').textContent = n > 1 ? 'Tải tất cả PNG xám 8-bit' : 'Tải PNG xám 8-bit';
   $('sendimg-msg').textContent = '';
