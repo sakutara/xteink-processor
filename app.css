@@ -323,3 +323,10 @@ body.has-host #done .hint { display: none; }
 @media (max-width: 559px) {
   .tab { padding: 6px 6px; font-size: .92rem; }
 }
+
+.rlist { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 10px; }
+.rlist li { padding: 10px 0; border-bottom: 1px solid rgba(128,128,128,.25); }
+.rlist .rname { font-weight: 600; word-break: break-all; margin-bottom: 4px; }
+#errmsg { white-space: pre-line; }
+.details { margin: 8px 0 12px; text-align: left; }
+.details summary { cursor: pointer; font-weight: 600; padding: 6px 0; }

@@ -110,10 +110,10 @@
 
     <section id="drop" class="drop" tabindex="0" role="button" aria-label="Chọn hoặc kéo thả tệp ebook">
       <svg class="drop-icon" viewBox="0 0 24 24" width="40" height="40" aria-hidden="true"><path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      <div class="drop-title">Kéo thả ebook vào đây</div>
+      <div class="drop-title">Kéo thả một hoặc nhiều ebook vào đây</div>
       <div class="drop-or">hoặc</div>
-      <button type="button" id="pick" class="btn primary">Chọn tệp</button>
-      <input id="file" type="file" hidden
+      <button type="button" id="pick" class="btn primary">Chọn 1/nhiều File</button>
+      <input id="file" type="file" hidden multiple
         accept=".epub,.azw3,.azw,.mobi,.prc,.txt,.html,.htm,.xhtml,.fb2,.pdf">
       <div class="formats">EPUB · AZW3 · AZW · MOBI · PRC · TXT · HTML · FB2 · PDF (có văn bản)</div>
     </section>
@@ -126,9 +126,9 @@
 
     <section id="done" class="card" hidden>
       <div class="ok">Đã chuyển đổi xong</div>
-      <div id="summary" class="chips"></div>
+      <details id="bookdetails" class="details"><summary id="booksummary">Chi tiết</summary><ul id="booklist" class="rlist"></ul></details>
       <div class="actions">
-        <a id="download" class="btn primary big" href="#">Tải xuống</a>
+        <button type="button" id="download" class="btn primary big">Tải xuống</button>
         <button type="button" id="sendbook" class="btn send">Upload lên XTEInk</button>
       </div>
       <div id="sendbook-msg" class="stage" aria-live="polite"></div>
@@ -147,8 +147,9 @@
 <section id="imgprep" class="card imgprep">
       <div class="drop-title">Chuẩn bị hình cho X3</div>
       <p class="stage">Hình bất kỳ → xám, vừa khung 528×792 (giữ tỉ lệ, phần thừa nền trắng), xuất BMP 4 mức xám cho CrossInk (kèm PNG).</p>
-      <button type="button" id="imgpick" class="btn">Chọn hình</button>
-      <input id="imgfile" type="file" hidden accept="image/*">
+      <button type="button" id="imgpick" class="btn">Chọn 1/nhiều File</button>
+      <input id="imgfile" type="file" hidden multiple accept="image/*">
+      <div id="imgqueue" class="stage" hidden></div>
       <div id="imged" class="editor" hidden>
         <div class="ed-main">
           <div class="ed-stage"><canvas id="edcanvas" aria-label="Khung cắt hình"></canvas></div>
@@ -183,13 +184,12 @@
         </div>
       </div>
       <div id="imgresult" hidden>
-        <img id="imgpreview" class="preview" alt="Xem trước hình đã xử lý">
-        <div id="imgsummary" class="stage"></div>
+        <details id="imgdetails" class="details"><summary id="imgsummary2">Chi tiết</summary><ul id="imglist" class="rlist"></ul></details>
         <div class="actions">
-          <a id="imgdownload" class="btn primary" href="#">Tải xuống BMP</a>
+          <button type="button" id="imgdownload" class="btn primary">Tải xuống BMP</button>
           <button type="button" id="sendimg" class="btn send">Upload lên XTEInk</button>
         </div>
-        <a id="imgdownloadpng" class="link" href="#">Tải PNG xám 8-bit</a>
+        <button type="button" id="imgdownloadpng" class="link">Tải tất cả PNG xám 8-bit</button>
         <div id="sendimg-msg" class="stage" aria-live="polite"></div>
       </div>
       <div id="imgerror" class="stage err" role="alert" hidden></div>
