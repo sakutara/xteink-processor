@@ -192,8 +192,8 @@ export function looksLikeChapterTitle(text) {
 
 // --- Markup nội tuyến trong đoạn văn: ký tự private-use làm dấu hiệu, giữ nguyên là chuỗi để các bước
 // cắt chương/tách đoạn không phải đổi kiểu dữ liệu. Tag được hỗ trợ: i, b (nội tuyến), ul/ol/li và blockquote (đánh dấu đầu đoạn).
-export const MK = { I1: '\uE000', I0: '\uE001', B1: '\uE002', B0: '\uE003', UL: '\uE010', OL: '\uE011', BQ: '\uE012' };
-const MK_ALL = /[\uE000-\uE003\uE010-\uE012]/g;
+export const MK = { I1: '\uE000', I0: '\uE001', B1: '\uE002', B0: '\uE003', UL: '\uE010', OL: '\uE011', BQ: '\uE012', CTR: '\uE013' };
+const MK_ALL = /[\uE000-\uE003\uE010-\uE013]/g;
 const TAGS = { '\uE000': ['i', 1], '\uE001': ['i', 0], '\uE002': ['b', 1], '\uE003': ['b', 0] };
 
 /** Bỏ cặp tag rỗng và khoảng trắng thừa sinh ra quanh chúng. */
@@ -208,11 +208,34 @@ export const richPlain = s => s.replace(MK_ALL, '');
 /** Bỏ ký tự private-use có sẵn trong nguồn (font icon...) để không bị nhầm với dấu hiệu. */
 export const stripPrivate = s => s.replace(/[-]/g, '');
 
-/** @returns {{kind:'ul'|'ol'|'bq'|null, body:string}} */
+const SUP = { 0: '⁰', 1: '¹', 2: '²', 3: '³', 4: '⁴', 5: '⁵', 6: '⁶', 7: '⁷', 8: '⁸', 9: '⁹', '+': '⁺', '-': '⁻', '−': '⁻', '–': '⁻', '=': '⁼', '(': '⁽', ')': '⁾', n: 'ⁿ', i: 'ⁱ' };
+const SUB = { 0: '₀', 1: '₁', 2: '₂', 3: '₃', 4: '₄', 5: '₅', 6: '₆', 7: '₇', 8: '₈', 9: '₉', '+': '₊', '-': '₋', '−': '₋', '–': '₋', '=': '₌', '(': '₍', ')': '₎' };
+const KEEP = /^[\s*†‡,.]$/;
+
+/** Bỏ ngoặc bao quanh toàn bộ nội dung sup/sub: "[1]" -> "1", "(2)" -> "2". */
+export const unwrapBrackets = s => { const m = /^\s*[[(]\s*([^[\]()]*?)\s*[\])]\s*$/.exec(s); return m ? m[1] : s; };
+
+/**
+ * Chuyển nội dung <sup>/<sub> sang ký tự Unicode (¹ ² ³ ₂ …). Dấu * † ‡ , . giữ nguyên.
+ * Trả về null nếu có ký tự không có dạng chỉ số, khi đó giữ chữ như cũ.
+ */
+export function toScript(text, kind) {
+  const map = kind === 'sub' ? SUB : SUP;
+  let out = '';
+  for (const ch of text) {
+    if (KEEP.test(ch)) out += ch;
+    else if (map[ch]) out += map[ch];
+    else return null;
+  }
+  return out;
+}
+
+/** @returns {{kind:'ul'|'ol'|'bq'|'ctr'|null, body:string}} */
 export function splitBlock(s) {
   if (s[0] === MK.UL) return { kind: 'ul', body: s.slice(1) };
   if (s[0] === MK.OL) return { kind: 'ol', body: s.slice(1) };
   if (s[0] === MK.BQ) return { kind: 'bq', body: s.slice(1) };
+  if (s[0] === MK.CTR) return { kind: 'ctr', body: s.slice(1) };
   return { kind: null, body: s };
 }
 

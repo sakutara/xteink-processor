@@ -1,5 +1,5 @@
 // Lõi chuyển đổi: các tài liệu đã parse + TOC gốc -> danh sách chương {title, paras[]}.
-import { UserError, cleanText, looksLikeChapterTitle, tick, MK, richPlain, stripPrivate, tidyRich } from './util.js';
+import { UserError, cleanText, looksLikeChapterTitle, tick, MK, richPlain, stripPrivate, tidyRich, toScript, unwrapBrackets } from './util.js';
 
 const SKIP = new Set([
   'script', 'style', 'link', 'meta', 'title', 'head', 'noscript', 'template', 'iframe',
@@ -56,7 +56,8 @@ function flatten(doc, docHref, targets, out) {
   const depth = { i: 0, b: 0 };
   let pendingLi = null; // MK.UL | MK.OL cho đoạn kế tiếp
   let curLi = null;     // mục li đang mở: {item}
-  let bqDepth = 0;
+  let bqDepth = 0, centerDepth = 0;
+  let script = null;    // {kind:'sup'|'sub', strip, convert} khi đang ở trong <sup>/<sub>
   let listKind = [];    // ngăn xếp ul/ol đang mở
 
   const bufPlain = () => richPlain(buf.join(''));
@@ -73,7 +74,7 @@ function flatten(doc, docHref, targets, out) {
         const it = curLi.item;
         it.rich += ' ' + rich; it.text += ' ' + plain;
       } else {
-        const item = { t: 'p', text: plain, rich: (pendingLi || (bqDepth ? MK.BQ : '')) + rich, link, cls: flagCls };
+        const item = { t: 'p', text: plain, rich: (pendingLi || (bqDepth ? MK.BQ : centerDepth ? MK.CTR : '')) + rich, link, cls: flagCls };
         if (pendingLi && curLi) curLi.item = item;
         out.push(item);
       }
@@ -99,6 +100,10 @@ function flatten(doc, docHref, targets, out) {
   const addText = (s) => {
     s = stripPrivate(s || '');
     if (!s) return;
+    if (script) {
+      if (script.strip) s = s.replace(/[[\]()]/g, '');
+      if (script.convert) s = toScript(s, script.kind) ?? s;
+    }
     if (pendingCap && s.trim()) {
       if (pendingCap.loose || pendingCap.block === curBlock) s = pendingCap.letter + s.replace(/^\s+/, '');
       pendingCap = null;
@@ -186,6 +191,12 @@ function flatten(doc, docHref, targets, out) {
     }
     if (isList) listKind.push(name);
     if (name === 'blockquote' && !headingDepth) { flush(); bqDepth++; }
+    if (name === 'center' && !headingDepth) { flush(); centerDepth++; }
+    const savedScript = script;
+    if ((name === 'sup' || name === 'sub') && !script) {
+      const raw = el.textContent || '', inner = unwrapBrackets(raw);
+      script = { kind: name, strip: inner !== raw, convert: toScript(inner, name) !== null };
+    }
     const savedLi = curLi;
     if (isLi) curLi = { item: null };
     if (inl.i) openTag('i');
@@ -198,6 +209,8 @@ function flatten(doc, docHref, targets, out) {
       if (isLi) { flush(); curLi = savedLi; pendingLi = null; }
       if (isList) { listKind.pop(); pendingLi = null; }
       if (name === 'blockquote' && !headingDepth) bqDepth--;
+      if (name === 'center' && !headingDepth) centerDepth--;
+      script = savedScript;
     }
   };
 
@@ -349,6 +362,10 @@ export async function normalize(book, report) {
     let bq = 0, all = 0;
     for (const p of c.paras) { all += p.length; if (p[0] === MK.BQ) bq += p.length; }
     if (bq > all * 0.6) c.paras = c.paras.map(p => (p[0] === MK.BQ ? p.slice(1) : p));
+    // Tương tự với <center>: sách canh giữa gần hết thì coi như không canh
+    let ctr = 0;
+    for (const p of c.paras) if (p[0] === MK.CTR) ctr += p.length;
+    if (ctr > all * 0.6) c.paras = c.paras.map(p => (p[0] === MK.CTR ? p.slice(1) : p));
   }
   final.forEach((c, i) => { if (!c.title) c.title = `Phần ${i + 1}`; });
   return final;

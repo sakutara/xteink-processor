@@ -22,6 +22,7 @@ function chapterBody(c) {
     const { kind, body } = splitBlock(p);
     const html = richToHtml(body, c.hits ? c.hits[k] : []);
     const wrap = kind === 'bq' ? 'blockquote' : kind;
+    if (kind === 'ctr') { if (open) { out.push(`</${open}>`); open = null; } out.push(`<center><p>${html}</p></center>`); return; }
     if (open && open !== wrap) { out.push(`</${open}>`); open = null; }
     if (wrap && !open) { out.push(`<${wrap}>`); open = wrap; }
     out.push(kind === 'ul' || kind === 'ol' ? `<li>${html}</li>` : `<p>${html}</p>`);
